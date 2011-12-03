@@ -32,7 +32,7 @@
 #include <limits.h>
 #include "wait.h"
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 
 #include "libgomp.h"
 
@@ -219,4 +219,4 @@ gomp_team_barrier_wait (gomp_barrier_t *bar)
 {
   gomp_team_barrier_wait_end (bar, gomp_barrier_wait_start (bar));
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */

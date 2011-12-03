@@ -47,7 +47,7 @@ extern long int gomp_futex_wait, gomp_futex_wake;
 
 #include "futex.h"
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 
 /*
  * TODO(benh): We should try and see if another library has asked us
@@ -76,7 +76,7 @@ static inline void do_wait (int *addr, int val)
   futex_wait (addr, val);
 }
 
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 #ifdef HAVE_ATTRIBUTE_VISIBILITY
 # pragma GCC visibility pop

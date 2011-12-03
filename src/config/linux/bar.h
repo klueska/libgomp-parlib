@@ -34,10 +34,10 @@
 
 #include "mutex.h"
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 #include <stdio.h>
 #include <stdlib.h>
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 typedef struct
 {
@@ -49,7 +49,7 @@ typedef struct
 } gomp_barrier_t;
 typedef unsigned int gomp_barrier_state_t;
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 
 static inline void gomp_barrier_init (gomp_barrier_t *bar, unsigned count)
 {
@@ -79,7 +79,7 @@ static inline void gomp_barrier_reinit (gomp_barrier_t *bar, unsigned count)
   bar->total = count;
 }
 
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 static inline void gomp_barrier_destroy (gomp_barrier_t *bar)
 {
@@ -93,7 +93,7 @@ extern void gomp_team_barrier_wait_end (gomp_barrier_t *,
 					gomp_barrier_state_t);
 extern void gomp_team_barrier_wake (gomp_barrier_t *, int);
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 
 extern gomp_barrier_state_t gomp_barrier_wait_start (gomp_barrier_t *bar);
 
@@ -192,6 +192,6 @@ gomp_team_barrier_done (gomp_barrier_t *bar, gomp_barrier_state_t state)
 {
   bar->generation = (state & ~3) + 4;
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 #endif /* GOMP_BARRIER_H */

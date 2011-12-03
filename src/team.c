@@ -32,14 +32,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 #include <assert.h>
 #include <stdio.h>
 
-#include <ht/atomic.h>
+#include <parlib/atomic.h>
 
 #include <sys/sysinfo.h>
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 /* This attribute contains PTHREAD_CREATE_DETACHED.  */
 pthread_attr_t gomp_thread_attr;
@@ -48,18 +48,18 @@ pthread_attr_t gomp_thread_attr;
 pthread_key_t gomp_thread_destructor;
 
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 
-DECLARE_DEFINE_TYPED_DEQUE(tasks, lithe_task_t *);
+DECLARE_DEFINE_TYPED_DEQUE(tasks, lithe_context_t *);
 
 int tasks_deque_lock;
 struct tasks_deque tasks_deque;
 
 #ifdef HAVE_TLS
 /* TODO(benh): Eliminate htls ... is it really that much of an optimization? */
-htls struct gomp_thread *gomp_tls_data = NULL;
-htls int started = 0;
-htls int resumed = 0;
+__thread struct gomp_thread *gomp_tls_data = NULL;
+__thread int started = 0;
+__thread int resumed = 0;
 #else
 #error "Lithe expects TLS."
 #endif
@@ -85,14 +85,14 @@ struct gomp_thread_start_data
   bool nested;
 };
 
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 /* This function is a pthread_create entry point.  This contains the idle
    loop in which a thread waits to be called up to become part of a team.  */
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 void
-gomp_thread_end(lithe_task_t *task, void *arg)
+gomp_thread_end(lithe_context_t *task, void *arg)
 {
 /*   free(task->ctx.uc_stack.ss_sp); */
 /*   lithe_task_destroy(task); */
@@ -104,7 +104,7 @@ gomp_thread_end(lithe_task_t *task, void *arg)
   }
   spinlock_unlock(&tasks_deque_lock);
 
-  struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_this();
+  struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_current();
   __sync_fetch_and_sub(&sched->gomp_threads_to_cleanup, 1);
 
   gomp_tls_data = NULL;
@@ -127,7 +127,7 @@ gomp_thread_start (void *arg)
 
   thr->state = ENDED;
 
-  lithe_task_block(gomp_thread_end, NULL);
+  lithe_context_block(gomp_thread_end, NULL);
 }
 #else
 static void *
@@ -197,10 +197,10 @@ gomp_thread_start (void *xdata)
 
   return NULL;
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 void gomp_enter(void *__this)
 {
   struct gomp_sched *sched = (struct gomp_sched *) __this;
@@ -219,13 +219,13 @@ void gomp_enter(void *__this)
 
 /*       printf("0x%x working here\n", (unsigned int) (long) pthread_self()); */
 
-      lithe_task_t *task;
+      lithe_context_t *task;
       spinlock_lock(&tasks_deque_lock);
       {
 	if (tasks_deque_length(&tasks_deque) > 0) {
 	  tasks_deque_pop(&tasks_deque, &task);
 	} else {
-	  task = gomp_malloc(sizeof(lithe_task_t));
+	  task = gomp_malloc(sizeof(lithe_context_t));
 	  stack_t stack;
 	  stack.ss_size = 4 * (1 << 20);
 	  stack.ss_sp = gomp_malloc(stack.ss_size);
@@ -234,7 +234,7 @@ void gomp_enter(void *__this)
       }
       spinlock_unlock(&tasks_deque_lock);
 
-      task->tls = NULL;
+      task->cls = NULL;
       started++;
       lithe_task_do(task, gomp_thread_start, &(sched->gomp_threads[i]));
     }
@@ -250,7 +250,7 @@ void gomp_enter(void *__this)
 	owner = true;
 	if (sched->gomp_threads[i].state == RESUMABLE) {
 	  sched->gomp_threads[i].state = RUNNING;
-	  lithe_task_t *task = sched->gomp_threads[i].lithe_task;
+	  lithe_context_t *task = sched->gomp_threads[i].lithe_task;
 	  sched->gomp_threads[i].lithe_task = NULL;
 	  resumed++;
 	  lithe_task_resume(task);
@@ -281,7 +281,7 @@ void gomp_enter(void *__this)
     }
     if (sched->gomp_threads[0].state == ENDED) {
       sched->gomp_threads[0].state = RUNNING;
-      lithe_task_t *task = sched->gomp_threads[0].lithe_task;
+      lithe_context_t *task = sched->gomp_threads[0].lithe_task;
       sched->gomp_threads[0].lithe_task = NULL;
 /*       printf("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) pthread_self(), started, resumed); */
       lithe_task_resume(task);
@@ -293,7 +293,7 @@ void gomp_enter(void *__this)
 /*   printf("0x%x started %d, resumed %d\n", (unsigned int) (long) pthread_self(), started, resumed); */
 /*   printf("0x%x malloc elapsed time %f\n", (unsigned int) (long) pthread_self(), timer_elapsed()); */
 /*   printf("0x%x leaving here\n", (unsigned int) (long) pthread_self()); */
-  lithe_sched_yield();
+  lithe_hart_yield();
 }
 
 
@@ -321,7 +321,7 @@ void gomp_request(void *__this, lithe_sched_t *child, int k)
 }
 
 
-void gomp_unblock(void *__this, lithe_task_t *task)
+void gomp_unblock(void *__this, lithe_context_t *task)
 {
   gomp_fatal("unimplemented");
 }
@@ -335,7 +335,7 @@ const lithe_sched_funcs_t funcs = {
   .request = gomp_request,
   .unblock = gomp_unblock,
 };
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 
 /* Create a new team data structure.  */
@@ -391,7 +391,7 @@ free_team (struct gomp_team *team)
   free (team);
 }
 
-#if !(__x86_64__ && USE_LITHE)
+#if !(USE_LITHE)
 /* Allocate and initialize a thread pool. */
 
 static struct gomp_thread_pool *gomp_new_thread_pool (void)
@@ -453,21 +453,21 @@ gomp_free_thread (void *arg __attribute__((unused)))
       free (task);
     }
 }
-#endif /* !(__x86_64__ && USE_LITHE) */
+#endif /* !(USE_LITHE) */
 
 /* Launch a team.  */
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 static int registered = 0;
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 void
 gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 		 struct gomp_team *team)
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 {
 /*   printf("                  gomp_team_start (%d)\n", nthreads); */
   struct gomp_sched *sched;
-  lithe_task_t *task;
+  lithe_context_t *task;
   struct gomp_thread *thr, *nthr;
   unsigned i;
 
@@ -487,14 +487,14 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   sched->gomp_threads_started = 0;
   sched->gomp_threads_to_cleanup = nthreads;
 
-  task = gomp_malloc(sizeof(lithe_task_t));
+  task = gomp_malloc(sizeof(lithe_context_t));
 
   __sync_fetch_and_add(&registered, 1);
   if (lithe_sched_register_task(&funcs, sched, task) != 0) {
     gomp_fatal("lithe_sched_register_task failed: %s", strerror(errno));
   }
 
-  task->tls = thr;
+  task->cls = thr;
 
   thr = gomp_tls_data = &(sched->gomp_threads[0]);
   thr->ts.team = team;
@@ -548,7 +548,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   asm volatile ("" : : : "memory");
   sched->gomp_threads_can_start = true;
 
-  if (lithe_sched_request(nthreads - 1) != 0) {
+  if (lithe_hart_request(nthreads - 1) != 0) {
     gomp_fatal("failed to request hard threads");
   }
 }
@@ -751,17 +751,17 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 #endif
     }
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 void
-gomp_team_end_block(lithe_task_t *task, void *arg)
+gomp_team_end_block(lithe_context_t *task, void *arg)
 {
   gomp_thread()->lithe_task = task;
   gomp_thread()->state = ENDED;
   lithe_sched_reenter();
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 
 /* Terminate the current team.  This is only to be called by the master
@@ -769,7 +769,7 @@ gomp_team_end_block(lithe_task_t *task, void *arg)
 
 void
 gomp_team_end (void)
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 {
 /*   printf("                  gomp_team_end\n"); */
   struct gomp_thread *thr = gomp_thread ();
@@ -777,14 +777,14 @@ gomp_team_end (void)
 
   thr->state = ENDING;
 
-  lithe_task_block(gomp_team_end_block, NULL);
+  lithe_context_block(gomp_team_end_block, NULL);
 
 /*   gomp_barrier_wait (&team->barrier); */
 
   struct gomp_sched *sched;
-  lithe_task_t *task;
+  lithe_context_t *task;
 
-  sched = (struct gomp_sched *) lithe_sched_this();
+  sched = (struct gomp_sched *) lithe_sched_current();
 
   lithe_sched_unregister_task(&task);
 
@@ -795,7 +795,7 @@ gomp_team_end (void)
 
 /*   gomp_end_task (); */
 
-  thr = gomp_tls_data = task->tls;
+  thr = gomp_tls_data = task->cls;
 
   if (thr != NULL) {
     thr->ts = team->prev_ts;
@@ -874,7 +874,7 @@ gomp_team_end (void)
       pool->last_team = team;
     }
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 
 /* Constructors for this file.  */
@@ -882,7 +882,7 @@ gomp_team_end (void)
 static void __attribute__((constructor))
 initialize_team (void)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   spinlock_init(&tasks_deque_lock);
   tasks_deque_init(&tasks_deque);
 
@@ -890,7 +890,7 @@ initialize_team (void)
 
   int i;
   for (i = 0; i < num; i++) {
-    lithe_task_t *task = gomp_malloc(sizeof(lithe_task_t));
+    lithe_context_t *task = gomp_malloc(sizeof(lithe_context_t));
     stack_t stack;
     stack.ss_size = 4 * (1 << 20);
     stack.ss_sp = gomp_malloc(stack.ss_size);
@@ -917,7 +917,7 @@ initialize_team (void)
   thr = &initial_thread_tls_data;
 #endif
   gomp_sem_init (&thr->release, 0);
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 static void __attribute__((destructor))
@@ -926,9 +926,9 @@ team_destructor (void)
   /* Without this dlclose on libgomp could lead to subsequent
      crashes.  */
   pthread_key_delete (gomp_thread_destructor);
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 /*   printf("registered: %d\n", registered); */
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 struct gomp_task_icv *

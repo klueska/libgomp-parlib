@@ -39,7 +39,7 @@
 
 unsigned
 gomp_resolve_num_threads (unsigned specified, unsigned count)
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 {
   /* Early exit for false IF condition or degenerate NUM_THREADS.  */
   if (specified == 1) {
@@ -117,7 +117,7 @@ gomp_resolve_num_threads (unsigned specified, unsigned count)
 
   return num_threads;
 }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 void
 GOMP_parallel_start (void (*fn) (void *), void *data, unsigned num_threads)
@@ -160,11 +160,11 @@ omp_get_num_threads (void)
 int
 omp_get_thread_num (void)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   if (gomp_thread() == NULL) {
     return 0;
   }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
   return gomp_thread ()->ts.team_id;
 }
 
@@ -175,11 +175,11 @@ omp_get_thread_num (void)
 int
 omp_in_parallel (void)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   if (gomp_thread() == NULL) {
     return false;
   }
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
   return gomp_thread ()->ts.active_level > 0;
 }

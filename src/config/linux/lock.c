@@ -41,12 +41,12 @@
 void
 gomp_init_lock_30 (omp_lock_t *lock)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   fprintf(stderr, "unimplemented (%s:%d)\n", __FILE__, __LINE__);
   abort();
 #else
   gomp_mutex_init (lock);
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 void
@@ -76,12 +76,12 @@ gomp_test_lock_30 (omp_lock_t *lock)
 void
 gomp_init_nest_lock_30 (omp_nest_lock_t *lock)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   fprintf(stderr, "unimplemented (%s:%d)\n", __FILE__, __LINE__);
   abort();
 #else
   memset (lock, '\0', sizeof (*lock));
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 void
@@ -182,12 +182,12 @@ static inline int gomp_tid (void)
 void
 gomp_init_nest_lock_25 (omp_nest_lock_25_t *lock)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   fprintf(stderr, "unimplemented (%s:%d)\n", __FILE__, __LINE__);
   abort();
 #else
   memset (lock, 0, sizeof (lock));
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 void

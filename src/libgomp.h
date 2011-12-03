@@ -40,16 +40,16 @@
 #include "config.h"
 #include "gstdint.h"
 
-#if __x86_64__ && USE_LITHE
-#include <lithe.h>
-#include <deque.h>
+#if USE_LITHE
+#include <lithe/lithe.h>
+#include <lithe/deque.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <ht/spinlock.h>
-#endif /* __x86_64__ && USE_LITHE */
+#include <parlib/spinlock.h>
+#endif /* USE_LITHE */
 
 #include <pthread.h>
 #include <stdbool.h>
@@ -63,7 +63,7 @@
 #include "bar.h"
 #include "ptrlock.h"
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 struct gomp_sched {
   int lock;
   struct gomp_thread *gomp_threads;
@@ -74,7 +74,7 @@ struct gomp_sched {
 
   bool gomp_threads_at_team_barrier;
 };
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 
 /* This structure contains the data to control one work-sharing construct,
@@ -367,13 +367,13 @@ struct gomp_thread
   /* user pthread thread pool */
   struct gomp_thread_pool *thread_pool;
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   enum { RUNNABLE, RUNNING, BLOCKING, BLOCKED, RESUMABLE, ENDING, ENDED } state;
 
-  lithe_task_t *lithe_task;
+  lithe_context_t *lithe_task;
 
   pthread_t owner;
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 };
 
 
@@ -392,9 +392,9 @@ struct gomp_thread_pool
 
 /* ... and here is that TLS data.  */
 
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 #ifdef HAVE_TLS
-extern htls struct gomp_thread *gomp_tls_data;
+extern __thread struct gomp_thread *gomp_tls_data;
 static inline struct gomp_thread *gomp_thread (void)
 {
   return gomp_tls_data;
@@ -416,7 +416,7 @@ static inline struct gomp_thread *gomp_thread (void)
   return pthread_getspecific (gomp_tls_key);
 }
 #endif
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 
 extern struct gomp_task_icv *gomp_new_icv (void);
 
@@ -424,10 +424,10 @@ extern struct gomp_task_icv *gomp_new_icv (void);
 
 static inline struct gomp_task_icv *gomp_icv (bool write)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
     fprintf(stderr, "gomp_icv has an incomplete implementation\n");
     abort();
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
   struct gomp_task *task = gomp_thread ()->task;
   if (task)
     return &task->icv;

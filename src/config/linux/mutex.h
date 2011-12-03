@@ -38,36 +38,36 @@ typedef int gomp_mutex_t;
 
 static inline void gomp_mutex_init (gomp_mutex_t *mutex)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   spinlock_init(mutex);
 #else
   *mutex = 0;
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 extern void gomp_mutex_lock_slow (gomp_mutex_t *mutex);
 static inline void gomp_mutex_lock (gomp_mutex_t *mutex)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   spinlock_lock(mutex);
 /*   printf("0x%x lock\n", (unsigned int) (long) pthread_self()); */
 #else
   if (!__sync_bool_compare_and_swap (mutex, 0, 1))
     gomp_mutex_lock_slow (mutex);
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 extern void gomp_mutex_unlock_slow (gomp_mutex_t *mutex);
 static inline void gomp_mutex_unlock (gomp_mutex_t *mutex)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
 /*   printf("0x%x unlock\n", (unsigned int) (long) pthread_self()); */
   spinlock_unlock(mutex);
 #else
   int val = __sync_lock_test_and_set (mutex, 0);
   if (__builtin_expect (val > 1, 0))
     gomp_mutex_unlock_slow (mutex);
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 static inline void gomp_mutex_destroy (gomp_mutex_t *mutex)

@@ -622,12 +622,12 @@ omp_get_schedule (omp_sched_t *kind, int *modifier)
 int
 omp_get_max_threads (void)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   return gomp_global_icv.nthreads_var;
 #else
   struct gomp_task_icv *icv = gomp_icv (false);
   return icv->nthreads_var;
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 int

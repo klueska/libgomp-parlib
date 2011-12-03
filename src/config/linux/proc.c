@@ -92,7 +92,7 @@ gomp_init_num_threads (void)
 static int
 get_num_procs (void)
 {
-#if __x86_64__ && USE_LITHE
+#if USE_LITHE
   return gomp_global_icv.nthreads_var;
 #else
 #ifdef HAVE_PTHREAD_AFFINITY_NP
@@ -137,7 +137,7 @@ get_num_procs (void)
 #else
   return gomp_icv (false)->nthreads_var;
 #endif
-#endif /* __x86_64__ && USE_LITHE */
+#endif /* USE_LITHE */
 }
 
 /* When OMP_DYNAMIC is set, at thread launch determine the number of
