@@ -1,6 +1,10 @@
-This includes a "ported" implementation of libgomp ripped out of
+libgomp-lithe - README
+For questions or comments, please contact: Kevin Klues <klueska@cs.berkeley.edu>
+
+This includes a lithe "ported" implementation of libgomp ripped out of
 gcc-4.4-20081212.
 
+The library built is called libgomp-lithe
 To build do the following:
 
 cd src
@@ -10,4 +14,26 @@ cd build
 ../configure --prefix=<install_dir>
 make
 make install
+
+Don't forget to use 'sudo' if you are installing into a directory which
+requires root priveleges.
+
+Running 'make check' should work for you too
+To see the results of it look in:
+src/build/testsuite/libgomp.log
+
+Also, if you install to a non-standard <install_dir>, it's probably a good idea
+to add these paths to a few environment variables.  Doing this will allow you
+to compile and run programs that depend on this library much easier. I set
+these variables in my .bashrc file in my home directory, but feel free to set
+them however you like.
+
+C_INCLUDE_PATH = <install_dir>/include
+CPLUS_INCLUDE_PATH = <install_dir>/include
+LD_LIBRARY_PATH = <install_dir>/lib
+LD_RUN_PATH = <install_dir>/lib
+
+Alternatively, you can set up a gcc spec file so that these tools will be
+available to all users on the system.  See the following link for details:
+http://gcc.gnu.org/onlinedocs/gcc-3.1/gcc/Spec-Files.html
 
