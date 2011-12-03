@@ -28,9 +28,9 @@ m4_copy_force([_AC_PREREQ], [AC_PREREQ])
 
 
 dnl Ensure exactly this Autoconf version is used
-m4_ifndef([_GCC_AUTOCONF_VERSION],
-  [m4_define([_GCC_AUTOCONF_VERSION], [2.64])])
-
+dnl m4_ifndef([_GCC_AUTOCONF_VERSION],
+dnl   [m4_define([_GCC_AUTOCONF_VERSION], [2.64])])
+dnl 
 dnl Test for the exact version when AC_INIT is expanded.
 dnl This allows to update the tree in steps (for testing)
 dnl by putting
@@ -38,14 +38,14 @@ dnl   m4_define([_GCC_AUTOCONF_VERSION], [X.Y])
 dnl in configure.ac before AC_INIT,
 dnl without rewriting this file.
 dnl Or for updating the whole tree at once with the definition above.
-AC_DEFUN([_GCC_AUTOCONF_VERSION_CHECK],
-[m4_if(m4_defn([_GCC_AUTOCONF_VERSION]),
-  m4_defn([m4_PACKAGE_VERSION]), [],
-  [m4_fatal([Please use exactly Autoconf ]_GCC_AUTOCONF_VERSION[ instead of ]m4_defn([m4_PACKAGE_VERSION])[.])])
-])
-m4_define([AC_INIT], m4_defn([AC_INIT])[
-_GCC_AUTOCONF_VERSION_CHECK
-])
+dnl AC_DEFUN([_GCC_AUTOCONF_VERSION_CHECK],
+dnl [m4_if(m4_defn([_GCC_AUTOCONF_VERSION]),
+dnl   m4_defn([m4_PACKAGE_VERSION]), [],
+dnl   [m4_fatal([Please use exactly Autoconf ]_GCC_AUTOCONF_VERSION[ instead of ]m4_defn([m4_PACKAGE_VERSION])[.])])
+dnl ])
+dnl m4_define([AC_INIT], m4_defn([AC_INIT])[
+dnl _GCC_AUTOCONF_VERSION_CHECK
+dnl ])
 
 
 dnl Ensure we do not use a buggy M4.

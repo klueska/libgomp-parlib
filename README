@@ -1,2 +1,13 @@
 This includes a "ported" implementation of libgomp ripped out of
 gcc-4.4-20081212.
+
+To build do the following:
+
+cd src
+autoreconf --install
+mkdir build
+cd build
+../configure --prefix=<install_dir>
+make
+make install
+

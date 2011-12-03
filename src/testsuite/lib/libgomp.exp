@@ -59,7 +59,8 @@ proc libgomp_init { args } {
     global target_triplet
     global always_ld_library_path
 
-    set blddir [lookfor_file [get_multilibs] libgomp]
+    #set blddir [lookfor_file [get_multilibs] libgomp]
+    set blddir ..
 
     # We set LC_ALL and LANG to C so that we get the same error
     # messages as expected.
@@ -127,7 +128,7 @@ proc libgomp_init { args } {
         lappend ALWAYS_CFLAGS "ldflags=-L${blddir}/.libs"
     }
     lappend ALWAYS_CFLAGS "additional_flags=-I${srcdir}/.."
-    lappend ALWAYS_CFLAGS "ldflags=-lgomp"
+    lappend ALWAYS_CFLAGS "ldflags=-lgomp-lithe"
 
     # We use atomic operations in the testcases to validate results.
     if { ([istarget i?86-*-*] || [istarget x86_64-*-*])

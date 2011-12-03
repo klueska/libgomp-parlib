@@ -1,0 +1,14 @@
+src/build
+src/build-aux
+src/Makefile.in
+src/aclocal.m4
+src/autom4te.cache/
+src/config.h.in
+src/configure
+src/gstdint.h
+src/m4/libtool.m4
+src/m4/ltoptions.m4
+src/m4/ltsugar.m4
+src/m4/ltversion.m4
+src/m4/lt~obsolete.m4
+src/testsuite/Makefile.in

@@ -1,24 +1,24 @@
 ## Process this file with automake to produce Makefile.in
 
-ACLOCAL_AMFLAGS = -I .. -I ../config
+ACLOCAL_AMFLAGS = -I m4 -I ../config
 SUBDIRS = testsuite
 
 ## May be used by toolexeclibdir.
-gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
+#gcc_version := $(shell cat $(top_srcdir)/../gcc/BASE-VER)
 
 config_path = @config_path@
 search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
 
-fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
-libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
+#fincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/finclude
+#libsubincludedir = $(libdir)/gcc/$(target_alias)/$(gcc_version)/include
 
 vpath % $(strip $(search_path))
 
 AM_CPPFLAGS = $(addprefix -I, $(search_path))
-AM_CFLAGS = $(XCFLAGS)
+AM_CFLAGS = $(XCFLAGS) #-DUSE_LITHE
 AM_LDFLAGS = $(XLDFLAGS) $(SECTION_LDFLAGS) $(OPT_LDFLAGS)
 
-toolexeclib_LTLIBRARIES = libgomp_lithe.la
+toolexeclib_LTLIBRARIES = libgomp-lithe.la
 nodist_toolexeclib_HEADERS = libgomp.spec
 
 if LIBGOMP_BUILD_VERSIONED_SHLIB
@@ -27,19 +27,19 @@ else
 libgomp_version_script =
 endif
 libgomp_version_info = -version-info $(libtool_VERSION)
-libgomp_la_LDFLAGS = $(libgomp_version_info) $(libgomp_version_script) \
+libgomp_lithe_la_LDFLAGS = $(libgomp_version_info) $(libgomp_version_script) \
         -no-undefined
 
-libgomp_la_SOURCES = alloc.c barrier.c critical.c env.c error.c iter.c \
+libgomp_lithe_la_SOURCES = alloc.c barrier.c critical.c env.c error.c iter.c \
 	iter_ull.c loop.c loop_ull.c ordered.c parallel.c sections.c single.c \
 	task.c team.c work.c lock.c mutex.c proc.c sem.c bar.c ptrlock.c \
 	time.c fortran.c affinity.c
 
-nodist_noinst_HEADERS = libgomp_f.h
-nodist_libsubinclude_HEADERS = omp.h
-if USE_FORTRAN
-nodist_finclude_HEADERS = omp_lib.h omp_lib.f90 omp_lib.mod omp_lib_kinds.mod
-endif
+#nodist_noinst_HEADERS = libgomp_f.h
+#nodist_libsubinclude_HEADERS = omp.h
+#if USE_FORTRAN
+#nodist_finclude_HEADERS = omp_lib.h omp_lib.f90 omp_lib.mod omp_lib_kinds.mod
+#endif
 
 omp_lib_kinds.mod: omp_lib.mod
 	:
@@ -70,11 +70,11 @@ install-pdf: $(PDFS)
 # variable TEXINFO_TEX to tell Automake where to find the canonical
 # `texinfo.tex' for your package. The value of this variable should be
 # the relative path from the current `Makefile.am' to `texinfo.tex'.
-TEXINFO_TEX   = ../gcc/doc/include/texinfo.tex
-
-# Defines info, dvi, pdf and html targets
-MAKEINFOFLAGS = -I $(srcdir)/../gcc/doc/include
-info_TEXINFOS = libgomp.texi
+#TEXINFO_TEX   = ../gcc/doc/include/texinfo.tex
+#
+## Defines info, dvi, pdf and html targets
+#MAKEINFOFLAGS = -I $(srcdir)/../gcc/doc/include
+#info_TEXINFOS = libgomp.texi
 
 # AM_CONDITIONAL on configure option --generated-files-in-srcdir
 if GENINSRC
@@ -93,15 +93,15 @@ endif
 
 all-local: $(STAMP_GENINSRC)
 
-stamp-geninsrc: libgomp.info
-	cp -p $(top_builddir)/libgomp.info $(srcdir)/libgomp.info
-	@touch $@
-
-libgomp.info: $(STAMP_BUILD_INFO)
-
-stamp-build-info: libgomp.texi
-	$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir) -o libgomp.info $(srcdir)/libgomp.texi
-	@touch $@
+#stamp-geninsrc: libgomp.info
+#	cp -p $(top_builddir)/libgomp.info $(srcdir)/libgomp.info
+#	@touch $@
+#
+#libgomp.info: $(STAMP_BUILD_INFO)
+#
+#stamp-build-info: libgomp.texi
+#	$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir) -o libgomp.info $(srcdir)/libgomp.texi
+#	@touch $@
 
 
 CLEANFILES = $(STAMP_GENINSRC) $(STAMP_BUILD_INFO) libgomp.info

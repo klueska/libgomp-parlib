@@ -9,6 +9,18 @@ AC_CONFIG_HEADER(config.h)
 # Options
 # -------
 
+# Directory containing any external m4 macros
+AC_CONFIG_MACRO_DIR([m4])
+
+# Auxiliary scripts such as install-sh and depcomp should be in DIRECTORY
+AC_CONFIG_AUX_DIR([build-aux])
+
+# Make the default prefix /usr instead of /usr/local
+AC_PREFIX_DEFAULT([/usr])
+
+# Bring in the Loader
+AM_PROG_LD
+
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
    [Specify that runtime libraries should be installed in a compiler-specific directory],
@@ -62,7 +74,7 @@ target_alias=${target_alias-$host_alias}
 #  -Wno-portability:  ...except this one, since GNU make is required.
 #  -Wno-override: ... and this one, since we do want this in testsuite.
 AM_INIT_AUTOMAKE([1.9.0 foreign -Wall -Wno-portability -Wno-override])
-AM_ENABLE_MULTILIB(, ..)
+#AM_ENABLE_MULTILIB(, ..)
 
 # Calculate toolexeclibdir
 # Also toolexecdir, though it's only used in toolexeclibdir
@@ -103,7 +115,7 @@ AC_SUBST(toolexeclibdir)
 m4_rename([_AC_ARG_VAR_PRECIOUS],[real_PRECIOUS])
 m4_define([_AC_ARG_VAR_PRECIOUS],[])
 AC_PROG_CC
-m4_rename([real_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
+m4_rename_force([real_PRECIOUS],[_AC_ARG_VAR_PRECIOUS])
 
 AC_SUBST(CFLAGS)
 
@@ -331,4 +343,5 @@ CFLAGS="$save_CFLAGS"
 
 AC_CONFIG_FILES(omp.h omp_lib.h omp_lib.f90 libgomp_f.h)
 AC_CONFIG_FILES(Makefile testsuite/Makefile libgomp.spec)
+
 AC_OUTPUT

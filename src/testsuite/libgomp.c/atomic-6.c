@@ -3,7 +3,7 @@
 /* { dg-options "-O2 -march=i586" { target { { i?86-*-* x86_64-*-* } && ilp32 } } } */
 
 #ifdef __i386__
-# include "../../../gcc/config/i386/cpuid.h"
+# include "cpuid.h"
 #endif
 
 extern void abort (void);
