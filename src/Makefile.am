@@ -15,7 +15,7 @@ search_path = $(addprefix $(top_srcdir)/config/, $(config_path)) $(top_srcdir)
 vpath % $(strip $(search_path))
 
 AM_CPPFLAGS = $(addprefix -I, $(search_path))
-AM_CFLAGS = $(XCFLAGS) #-DUSE_LITHE
+AM_CFLAGS = $(XCFLAGS) -DUSE_LITHE
 AM_LDFLAGS = $(XLDFLAGS) $(SECTION_LDFLAGS) $(OPT_LDFLAGS)
 
 toolexeclib_LTLIBRARIES = libgomp-lithe.la
@@ -34,6 +34,8 @@ libgomp_lithe_la_SOURCES = alloc.c barrier.c critical.c env.c error.c iter.c \
 	iter_ull.c loop.c loop_ull.c ordered.c parallel.c sections.c single.c \
 	task.c team.c work.c lock.c mutex.c proc.c sem.c bar.c ptrlock.c \
 	time.c fortran.c affinity.c
+
+libgomp_lithe_la_LIBADD = -llithe
 
 #nodist_noinst_HEADERS = libgomp_f.h
 #nodist_libsubinclude_HEADERS = omp.h
