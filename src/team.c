@@ -115,9 +115,9 @@ gomp_thread_start (void *arg)
 {
   struct gomp_thread *thr = gomp_tls_data = arg;
 
-/*   printf("0x%x begin\n", (unsigned int) (long) pthread_self()); */
+/*   printf("0x%x begin\n", (unsigned int) (long) hart_id()); */
   thr->fn(thr->data);
-/*   printf("0x%x end\n", (unsigned int) (long) pthread_self()); */
+/*   printf("0x%x end\n", (unsigned int) (long) hart_id()); */
 
 /*   gomp_finish_task(thr->task); */
 
@@ -203,7 +203,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
 {
   struct gomp_sched *sched = (struct gomp_sched *) __this;
 
-/*   printf("0x%x trying here\n", (unsigned int) (long) pthread_self()); */
+/*   printf("0x%x trying here\n", (unsigned int) (long) hart_id()); */
 
   if (sched->gomp_threads_can_start) {
     int i = sched->gomp_threads_started;
@@ -213,9 +213,9 @@ void gomp_hart_enter(lithe_sched_t *__this)
     if (i < sched->gomp_threads_size) {
       assert(sched->gomp_threads[i].state == RUNNABLE);
       sched->gomp_threads[i].state = RUNNING;
-      sched->gomp_threads[i].owner = pthread_self();
+      sched->gomp_threads[i].owner = hart_id();
 
-/*       printf("0x%x working here\n", (unsigned int) (long) pthread_self()); */
+/*       printf("0x%x working here\n", (unsigned int) (long) hart_id()); */
 
       lithe_context_t *task;
       spinlock_lock(&tasks_deque_lock);
@@ -245,7 +245,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
     bool finished = true;
     int i;
     for (i = 0; i < sched->gomp_threads_size; i++) {
-      if (sched->gomp_threads[i].owner == pthread_self()) {
+      if (sched->gomp_threads[i].owner == hart_id()) {
 	owner = true;
 	if (sched->gomp_threads[i].state == RESUMABLE) {
 	  sched->gomp_threads[i].state = RUNNING;
@@ -265,7 +265,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
     if (finished)
       break;
 
-/*     printf("0x%x waiting here\n", (unsigned int) (long) pthread_self()); */
+/*     printf("0x%x waiting here\n", (unsigned int) (long) hart_id()); */
 
 /*     gomp_barrier_t *barrier = sched->gomp_threads[0].ts.team->barrier; */
 /*     int generation = barrier->generation; */
@@ -274,67 +274,38 @@ void gomp_hart_enter(lithe_sched_t *__this)
 /*     } */
   } while (sched->gomp_threads_to_cleanup != 1);
 
-  if (sched->gomp_threads[0].owner == pthread_self()) {
+  if (sched->gomp_threads[0].owner == hart_id()) {
     cmb();
     while (sched->gomp_threads_to_cleanup != 1) {
       cpu_relax();
-/*       printf("0x%x (main) waiting here\n", (unsigned int) (long) pthread_self()); */
+/*       printf("0x%x (main) waiting here\n", (unsigned int) (long) hart_id()); */
     }
     if (sched->gomp_threads[0].state == ENDED) {
       sched->gomp_threads[0].state = RUNNING;
       lithe_context_t *task = sched->gomp_threads[0].lithe_task;
       sched->gomp_threads[0].lithe_task = NULL;
-/*       printf("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) pthread_self(), started, resumed); */
+/*       printf("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed); */
       lithe_context_run(task);
     }
 /*   } else { */
-/*     printf("%p says not the owner of main team member\n", (void *) pthread_self()); */
+/*     printf("%p says not the owner of main team member\n", (void *) hart_id()); */
   }
 
-/*   printf("0x%x started %d, resumed %d\n", (unsigned int) (long) pthread_self(), started, resumed); */
-/*   printf("0x%x malloc elapsed time %f\n", (unsigned int) (long) pthread_self(), timer_elapsed()); */
-/*   printf("0x%x leaving here\n", (unsigned int) (long) pthread_self()); */
+/*   printf("0x%x started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed); */
+/*   printf("0x%x malloc elapsed time %f\n", (unsigned int) (long) hart_id(), timer_elapsed()); */
+/*   printf("0x%x leaving here\n", (unsigned int) (long) hart_id()); */
   lithe_hart_yield();
 }
 
 
-void gomp_hart_return(lithe_sched_t *__this, lithe_sched_t *child)
-{
-  gomp_fatal("unimplemented");
-}
-
-
-void gomp_child_enter(lithe_sched_t *__this, lithe_sched_t *child)
-{
-  gomp_fatal("unimplemented");
-}
-
-
-void gomp_child_exit(lithe_sched_t *__this, lithe_sched_t *child)
-{
-  gomp_fatal("unimplemented");
-}
-
-
-int gomp_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
-{
-  gomp_fatal("unimplemented");
-}
-
-
-void gomp_context_unblock(lithe_sched_t *__this, lithe_context_t *context)
-{
-  gomp_fatal("unimplemented");
-}
-
 static const lithe_sched_funcs_t funcs = {
-  .hart_request        = gomp_hart_request,
+  .hart_request        = __hart_request_default,
   .hart_enter          = gomp_hart_enter,
-  .hart_return         = gomp_hart_return,
-  .child_enter         = gomp_child_enter,
-  .child_exit          = gomp_child_exit,
+  .hart_return         = __hart_return_default,
+  .child_enter         = __child_enter_default,
+  .child_exit          = __child_exit_default,
   .context_block       = __context_block_default,
-  .context_unblock     = gomp_context_unblock,
+  .context_unblock     = __context_unblock_default,
   .context_yield       = __context_yield_default,
   .context_exit        = __context_exit_default
 };
@@ -516,8 +487,8 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   gomp_sem_init (&thr->release, 0);
 
   thr->state = RUNNING;
-/*   printf("owner of main team member is %p\n", (void *) pthread_self()); */
-  thr->owner = pthread_self();
+/*   printf("owner of main team member is %p\n", (void *) hart_id()); */
+  thr->owner = hart_id();
 
   sched->gomp_threads_started = 1;
 
