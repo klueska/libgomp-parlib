@@ -43,6 +43,7 @@
 #if USE_LITHE
 #include <lithe/lithe.h>
 #include <lithe/deque.h>
+#include <lithe/defaults.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
@@ -65,6 +66,7 @@
 
 #if USE_LITHE
 struct gomp_sched {
+  lithe_sched_t sched;
   int lock;
   struct gomp_thread *gomp_threads;
   unsigned gomp_threads_size;

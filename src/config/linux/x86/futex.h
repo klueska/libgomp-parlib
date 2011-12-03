@@ -143,11 +143,11 @@ futex_wake (int *addr, int count)
 
 #endif /* __LP64__ */
 
-static inline void
-cpu_relax (void)
-{
-  __asm volatile ("rep; nop" : : : "memory");
-}
+//static inline void
+//cpu_relax (void)
+//{
+//  __asm volatile ("rep; nop" : : : "memory");
+//}
 
 static inline void
 atomic_write_barrier (void)

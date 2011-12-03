@@ -108,8 +108,6 @@ gomp_thread_end(lithe_context_t *task, void *arg)
   __sync_fetch_and_sub(&sched->gomp_threads_to_cleanup, 1);
 
   gomp_tls_data = NULL;
-
-  lithe_sched_reenter();
 }
 
 void
@@ -201,7 +199,7 @@ gomp_thread_start (void *xdata)
 
 
 #if USE_LITHE
-void gomp_enter(void *__this)
+void gomp_hart_enter(lithe_sched_t *__this)
 {
   struct gomp_sched *sched = (struct gomp_sched *) __this;
 
@@ -226,17 +224,18 @@ void gomp_enter(void *__this)
 	  tasks_deque_pop(&tasks_deque, &task);
 	} else {
 	  task = gomp_malloc(sizeof(lithe_context_t));
-	  stack_t stack;
-	  stack.ss_size = 4 * (1 << 20);
-	  stack.ss_sp = gomp_malloc(stack.ss_size);
-	  lithe_task_init(task, &stack);
+      assert(task);
+	  task->stack.size = 4 * (1 << 20);
+	  task->stack.bottom = gomp_malloc(task->stack.size);
+      assert(task->stack.bottom);
 	}
       }
       spinlock_unlock(&tasks_deque_lock);
 
       task->cls = NULL;
       started++;
-      lithe_task_do(task, gomp_thread_start, &(sched->gomp_threads[i]));
+      lithe_context_init(task, gomp_thread_start, &(sched->gomp_threads[i]));
+      lithe_context_run(task);
     }
   }
 
@@ -253,7 +252,7 @@ void gomp_enter(void *__this)
 	  lithe_context_t *task = sched->gomp_threads[i].lithe_task;
 	  sched->gomp_threads[i].lithe_task = NULL;
 	  resumed++;
-	  lithe_task_resume(task);
+	  lithe_context_run(task);
 	} else if (sched->gomp_threads[i].state != ENDED) {
 	  finished = false;
 	}
@@ -276,7 +275,9 @@ void gomp_enter(void *__this)
   } while (sched->gomp_threads_to_cleanup != 1);
 
   if (sched->gomp_threads[0].owner == pthread_self()) {
-    while (coherent_read(sched->gomp_threads_to_cleanup) != 1) {
+    cmb();
+    while (sched->gomp_threads_to_cleanup != 1) {
+      cpu_relax();
 /*       printf("0x%x (main) waiting here\n", (unsigned int) (long) pthread_self()); */
     }
     if (sched->gomp_threads[0].state == ENDED) {
@@ -284,7 +285,7 @@ void gomp_enter(void *__this)
       lithe_context_t *task = sched->gomp_threads[0].lithe_task;
       sched->gomp_threads[0].lithe_task = NULL;
 /*       printf("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) pthread_self(), started, resumed); */
-      lithe_task_resume(task);
+      lithe_context_run(task);
     }
 /*   } else { */
 /*     printf("%p says not the owner of main team member\n", (void *) pthread_self()); */
@@ -297,44 +298,47 @@ void gomp_enter(void *__this)
 }
 
 
-void gomp_yield(void *__this, lithe_sched_t *child)
+void gomp_hart_return(lithe_sched_t *__this, lithe_sched_t *child)
 {
   gomp_fatal("unimplemented");
 }
 
 
-void gomp_reg(void *__this, lithe_sched_t *child)
+void gomp_child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
   gomp_fatal("unimplemented");
 }
 
 
-void gomp_unreg(void *__this, struct lithe_sched *child)
+void gomp_child_exit(lithe_sched_t *__this, lithe_sched_t *child)
 {
   gomp_fatal("unimplemented");
 }
 
 
-void gomp_request(void *__this, lithe_sched_t *child, int k)
+int gomp_hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
 {
   gomp_fatal("unimplemented");
 }
 
 
-void gomp_unblock(void *__this, lithe_context_t *task)
+void gomp_context_unblock(lithe_sched_t *__this, lithe_context_t *context)
 {
   gomp_fatal("unimplemented");
 }
 
-
-const lithe_sched_funcs_t funcs = {
-  .enter   = gomp_enter,
-  .yield   = gomp_yield,
-  .reg     = gomp_reg,
-  .unreg   = gomp_unreg,
-  .request = gomp_request,
-  .unblock = gomp_unblock,
+static const lithe_sched_funcs_t funcs = {
+  .hart_request        = gomp_hart_request,
+  .hart_enter          = gomp_hart_enter,
+  .hart_return         = gomp_hart_return,
+  .child_enter         = gomp_child_enter,
+  .child_exit          = gomp_child_exit,
+  .context_block       = __context_block_default,
+  .context_unblock     = gomp_context_unblock,
+  .context_yield       = __context_yield_default,
+  .context_exit        = __context_exit_default
 };
+
 #endif /* USE_LITHE */
 
 
@@ -467,7 +471,6 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 {
 /*   printf("                  gomp_team_start (%d)\n", nthreads); */
   struct gomp_sched *sched;
-  lithe_context_t *task;
   struct gomp_thread *thr, *nthr;
   unsigned i;
 
@@ -487,14 +490,13 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   sched->gomp_threads_started = 0;
   sched->gomp_threads_to_cleanup = nthreads;
 
-  task = gomp_malloc(sizeof(lithe_context_t));
-
   __sync_fetch_and_add(&registered, 1);
-  if (lithe_sched_register_task(&funcs, sched, task) != 0) {
-    gomp_fatal("lithe_sched_register_task failed: %s", strerror(errno));
+  sched->sched.funcs = &funcs;
+  if (lithe_sched_enter((lithe_sched_t*)sched) != 0) {
+    gomp_fatal("lithe_sched_enter failed: %s", strerror(errno));
   }
 
-  task->cls = thr;
+  sched->sched.start_context.cls = thr;
 
   thr = gomp_tls_data = &(sched->gomp_threads[0]);
   thr->ts.team = team;
@@ -759,7 +761,6 @@ gomp_team_end_block(lithe_context_t *task, void *arg)
 {
   gomp_thread()->lithe_task = task;
   gomp_thread()->state = ENDED;
-  lithe_sched_reenter();
 }
 #endif /* USE_LITHE */
 
@@ -782,11 +783,15 @@ gomp_team_end (void)
 /*   gomp_barrier_wait (&team->barrier); */
 
   struct gomp_sched *sched;
-  lithe_context_t *task;
 
   sched = (struct gomp_sched *) lithe_sched_current();
 
-  lithe_sched_unregister_task(&task);
+  lithe_sched_exit();
+
+  thr = gomp_tls_data = sched->sched.start_context.cls;
+  if (thr != NULL) {
+    thr->ts = team->prev_ts;
+  }
 
   free(sched->gomp_threads);
   free(sched);
@@ -794,14 +799,6 @@ gomp_team_end (void)
 /*   gomp_fini_work_share (thr->ts.work_share); */
 
 /*   gomp_end_task (); */
-
-  thr = gomp_tls_data = task->cls;
-
-  if (thr != NULL) {
-    thr->ts = team->prev_ts;
-  }
-
-  free(task);
 
   if (__builtin_expect (team->work_shares[0].next_alloc != NULL, 0))
     {
@@ -891,10 +888,10 @@ initialize_team (void)
   int i;
   for (i = 0; i < num; i++) {
     lithe_context_t *task = gomp_malloc(sizeof(lithe_context_t));
-    stack_t stack;
-    stack.ss_size = 4 * (1 << 20);
-    stack.ss_sp = gomp_malloc(stack.ss_size);
-    lithe_task_init(task, &stack);
+    assert(task);
+	task->stack.size = 4 * (1 << 20);
+	task->stack.bottom = gomp_malloc(task->stack.size);
+    assert(task->stack.bottom);
     tasks_deque_push(&tasks_deque, task);
   }
   

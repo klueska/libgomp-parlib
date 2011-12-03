@@ -36,24 +36,23 @@
 
 #include "libgomp.h"
 
-static void bar_block(lithe_task_t *task, void *arg)
+static void bar_block(lithe_context_t *task, void *arg)
 {
-  struct gomp_thread *thr = (struct gomp_thread *) task->tls;
+  struct gomp_thread *thr = (struct gomp_thread *) task->cls;
   thr->lithe_task = task;
 
   if (thr->state == BLOCKING) {
     if (!__sync_bool_compare_and_swap(&thr->state, BLOCKING, BLOCKED)) {
       assert(thr->state == RUNNING);
       thr->lithe_task = NULL;
-      lithe_task_resume(task);
+      lithe_context_run(task);
     }
   } else {
     assert(thr->state == RUNNING);
     thr->lithe_task = NULL;
-    lithe_task_resume(task);
+    lithe_context_run(task);
   }
 
-  lithe_sched_reenter();
 }
 
 void
@@ -64,7 +63,7 @@ gomp_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t last)
 
     bar->awaited = bar->total;
 
-    struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_this();
+    struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_current();
     int i;
     for (i = 0; i < sched->gomp_threads_size; i++) {
       if (sched->gomp_threads[i].state == BLOCKING) {
@@ -81,20 +80,19 @@ gomp_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t last)
 /*     sched->gomp_threads_team_barrier_generation = bar->generation; */
   } else {
     /* TODO(benh): This is such a hack ... */
-    lithe_task_t *task;
-    lithe_task_get(&task);
-    void *tls = task->tls;
-    assert(tls != NULL ? gomp_thread()->ts.team->prev_ts.team == ((struct gomp_thread *) tls)->ts.team : 1);
-    task->tls = gomp_thread();
-    lithe_task_block(bar_block, NULL);
-    gomp_tls_data = task->tls;
-    task->tls = tls;
+    lithe_context_t *task = lithe_context_self();
+    void *cls = task->cls;
+    assert(cls != NULL ? gomp_thread()->ts.team->prev_ts.team == ((struct gomp_thread *) cls)->ts.team : 1);
+    task->cls = gomp_thread();
+    lithe_context_block(bar_block, NULL);
+    gomp_tls_data = task->cls;
+    task->cls = cls;
   }
 }
 
 gomp_barrier_state_t gomp_barrier_wait_start (gomp_barrier_t *bar)
 {
-/*   struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_this(); */
+/*   struct gomp_sched *sched = (struct gomp_sched *) lithe_sched_current(); */
 /*   sched->gomp_threads_at_team_barrier = true; */
   assert(gomp_thread()->state == RUNNING);
   gomp_thread()->state = BLOCKING;
