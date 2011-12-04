@@ -18,8 +18,9 @@ make install
 Don't forget to use 'sudo' if you are installing into a directory which
 requires root priveleges.
 
-Running 'make check' should work for you too
-To see the results of it look in:
+Running 'make check' should work for the most part.  Not all of libgomp has
+been ported, so not all of the tests will pass yet. 
+To see the results look in:
 src/build/testsuite/libgomp.log
 
 Also, if you install to a non-standard <install_dir>, it's probably a good idea

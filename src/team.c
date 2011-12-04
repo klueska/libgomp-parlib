@@ -32,6 +32,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEBUG_LITHE 0
+
 #if USE_LITHE
 #include <assert.h>
 #include <stdio.h>
@@ -39,6 +41,11 @@
 #include <parlib/atomic.h>
 
 #include <sys/sysinfo.h>
+#if DEBUG_LITHE
+  #define debug_lithe(...) printf(__VA_ARGS__)
+#else
+  #define debug_lithe(...)
+#endif
 #endif /* USE_LITHE */
 
 /* This attribute contains PTHREAD_CREATE_DETACHED.  */
@@ -108,16 +115,18 @@ gomp_thread_end(lithe_context_t *task, void *arg)
   __sync_fetch_and_sub(&sched->gomp_threads_to_cleanup, 1);
 
   gomp_tls_data = NULL;
+  hart_set_tls_var(gomp_tls_data, gomp_tls_data);
 }
 
 void
 gomp_thread_start (void *arg)
 {
   struct gomp_thread *thr = gomp_tls_data = arg;
+  hart_set_tls_var(gomp_tls_data, gomp_tls_data);
 
-/*   printf("0x%x begin\n", (unsigned int) (long) hart_id()); */
+  debug_lithe("0x%x begin\n", (unsigned int) (long) hart_id());
   thr->fn(thr->data);
-/*   printf("0x%x end\n", (unsigned int) (long) hart_id()); */
+  debug_lithe("0x%x end\n", (unsigned int) (long) hart_id());
 
 /*   gomp_finish_task(thr->task); */
 
@@ -203,7 +212,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
 {
   struct gomp_sched *sched = (struct gomp_sched *) __this;
 
-/*   printf("0x%x trying here\n", (unsigned int) (long) hart_id()); */
+  debug_lithe("0x%x trying here\n", (unsigned int) (long) hart_id());
 
   if (sched->gomp_threads_can_start) {
     int i = sched->gomp_threads_started;
@@ -215,7 +224,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
       sched->gomp_threads[i].state = RUNNING;
       sched->gomp_threads[i].owner = hart_id();
 
-/*       printf("0x%x working here\n", (unsigned int) (long) hart_id()); */
+      debug_lithe("0x%x working here\n", (unsigned int) (long) hart_id());
 
       lithe_context_t *task;
       spinlock_lock(&tasks_deque_lock);
@@ -228,13 +237,14 @@ void gomp_hart_enter(lithe_sched_t *__this)
 	  task->stack.size = 4 * (1 << 20);
 	  task->stack.bottom = gomp_malloc(task->stack.size);
       assert(task->stack.bottom);
+      lithe_context_init(task, NULL, NULL);
 	}
       }
       spinlock_unlock(&tasks_deque_lock);
 
       task->cls = NULL;
       started++;
-      lithe_context_init(task, gomp_thread_start, &(sched->gomp_threads[i]));
+      lithe_context_reinit(task, gomp_thread_start, &(sched->gomp_threads[i]));
       lithe_context_run(task);
     }
   }
@@ -265,7 +275,7 @@ void gomp_hart_enter(lithe_sched_t *__this)
     if (finished)
       break;
 
-/*     printf("0x%x waiting here\n", (unsigned int) (long) hart_id()); */
+    debug_lithe("0x%x waiting here\n", (unsigned int) (long) hart_id());
 
 /*     gomp_barrier_t *barrier = sched->gomp_threads[0].ts.team->barrier; */
 /*     int generation = barrier->generation; */
@@ -278,22 +288,22 @@ void gomp_hart_enter(lithe_sched_t *__this)
     cmb();
     while (sched->gomp_threads_to_cleanup != 1) {
       cpu_relax();
-/*       printf("0x%x (main) waiting here\n", (unsigned int) (long) hart_id()); */
+      debug_lithe("0x%x (main) waiting here\n", (unsigned int) (long) hart_id());
     }
     if (sched->gomp_threads[0].state == ENDED) {
       sched->gomp_threads[0].state = RUNNING;
       lithe_context_t *task = sched->gomp_threads[0].lithe_task;
       sched->gomp_threads[0].lithe_task = NULL;
-/*       printf("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed); */
+      debug_lithe("0x%x (main) started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed);
       lithe_context_run(task);
     }
-/*   } else { */
-/*     printf("%p says not the owner of main team member\n", (void *) hart_id()); */
+   } else {
+     debug_lithe("0x%x says not the owner of main team member\n", hart_id());
   }
 
-/*   printf("0x%x started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed); */
-/*   printf("0x%x malloc elapsed time %f\n", (unsigned int) (long) hart_id(), timer_elapsed()); */
-/*   printf("0x%x leaving here\n", (unsigned int) (long) hart_id()); */
+  debug_lithe("0x%x started %d, resumed %d\n", (unsigned int) (long) hart_id(), started, resumed);
+  /* debug_lithe("0x%x malloc elapsed time %d\n", (unsigned int) (long) hart_id(), timer_elapsed()); */
+  debug_lithe("0x%x leaving here\n", (unsigned int) (long) hart_id());
   lithe_hart_yield();
 }
 
@@ -440,7 +450,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 		 struct gomp_team *team)
 #if USE_LITHE
 {
-/*   printf("                  gomp_team_start (%d)\n", nthreads); */
+  debug_lithe("                  gomp_team_start (%d)\n", nthreads);
   struct gomp_sched *sched;
   struct gomp_thread *thr, *nthr;
   unsigned i;
@@ -470,6 +480,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   sched->sched.start_context.cls = thr;
 
   thr = gomp_tls_data = &(sched->gomp_threads[0]);
+  hart_set_tls_var(gomp_tls_data, gomp_tls_data);
   thr->ts.team = team;
   thr->ts.team_id = 0;
   ++thr->ts.level;
@@ -487,7 +498,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   gomp_sem_init (&thr->release, 0);
 
   thr->state = RUNNING;
-/*   printf("owner of main team member is %p\n", (void *) hart_id()); */
+  debug_lithe("owner of main team member is 0x%x\n", hart_id());
   thr->owner = hart_id();
 
   sched->gomp_threads_started = 1;
@@ -743,12 +754,11 @@ void
 gomp_team_end (void)
 #if USE_LITHE
 {
-/*   printf("                  gomp_team_end\n"); */
+  debug_lithe("                  gomp_team_end\n");
   struct gomp_thread *thr = gomp_thread ();
   struct gomp_team *team = thr->ts.team;
 
   thr->state = ENDING;
-
   lithe_context_block(gomp_team_end_block, NULL);
 
 /*   gomp_barrier_wait (&team->barrier); */
@@ -760,6 +770,7 @@ gomp_team_end (void)
   lithe_sched_exit();
 
   thr = gomp_tls_data = sched->sched.start_context.cls;
+  hart_set_tls_var(gomp_tls_data, gomp_tls_data);
   if (thr != NULL) {
     thr->ts = team->prev_ts;
   }
@@ -864,6 +875,7 @@ initialize_team (void)
 	task->stack.bottom = gomp_malloc(task->stack.size);
     assert(task->stack.bottom);
     tasks_deque_push(&tasks_deque, task);
+    lithe_context_init(task, NULL, NULL);
   }
   
 #else
@@ -895,7 +907,7 @@ team_destructor (void)
      crashes.  */
   pthread_key_delete (gomp_thread_destructor);
 #if USE_LITHE
-/*   printf("registered: %d\n", registered); */
+  debug_lithe("registered: %d\n", registered);
 #endif /* USE_LITHE */
 }
 

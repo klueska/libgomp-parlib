@@ -153,6 +153,11 @@ GOMP_parallel_end (void)
 int
 omp_get_num_threads (void)
 {
+#if USE_LITHE
+  if (gomp_thread() == NULL) {
+    return 1;
+  }
+#endif /* USE_LITHE */
   struct gomp_team *team = gomp_thread ()->ts.team;
   return team ? team->nthreads : 1;
 }

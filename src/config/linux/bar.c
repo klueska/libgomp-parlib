@@ -86,6 +86,7 @@ gomp_barrier_wait_end (gomp_barrier_t *bar, gomp_barrier_state_t last)
     task->cls = gomp_thread();
     lithe_context_block(bar_block, NULL);
     gomp_tls_data = task->cls;
+    hart_set_tls_var(gomp_tls_data, gomp_tls_data);
     task->cls = cls;
   }
 }

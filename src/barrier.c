@@ -33,6 +33,11 @@
 void
 GOMP_barrier (void)
 {
+#ifdef USE_LITHE
+  if(gomp_thread() == NULL)
+    return;
+#endif /* USE_LITHE */
+
   struct gomp_thread *thr = gomp_thread ();
   struct gomp_team *team = thr->ts.team;
 

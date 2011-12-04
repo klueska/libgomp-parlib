@@ -399,7 +399,7 @@ struct gomp_thread_pool
 extern __thread struct gomp_thread *gomp_tls_data;
 static inline struct gomp_thread *gomp_thread (void)
 {
-  return gomp_tls_data;
+  return hart_get_tls_var(gomp_tls_data);
 }
 #else
 #error "Lithe expects TLS."
