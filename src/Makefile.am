@@ -35,7 +35,7 @@ libgomp_lithe_la_SOURCES = alloc.c barrier.c critical.c env.c error.c iter.c \
 	task.c team.c work.c lock.c mutex.c proc.c sem.c bar.c ptrlock.c \
 	time.c fortran.c affinity.c
 
-libgomp_lithe_la_LIBADD = -llithe
+libgomp_lithe_la_LIBADD = -lithe
 
 #nodist_noinst_HEADERS = libgomp_f.h
 #nodist_libsubinclude_HEADERS = omp.h
