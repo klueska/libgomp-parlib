@@ -5,13 +5,19 @@ This includes a lithe "ported" implementation of libgomp ripped out of
 gcc-4.4-20081212.
 
 The library built is called libgomp-lithe
-To build do the following:
+
+To install this library, simply follow the standard GNU installation procedure.
+If you have 'parlib' and 'lithe' installed in a non-standard location, be sure
+and set the --with-parlib and --with-lithe configure options appropriately.
+Otherwise, you can just ignore them.
 
 cd src
 autoreconf --install
 mkdir build
 cd build
-../configure --prefix=<install_dir>
+../configure --prefix=<install_dir> \
+             --with-parlib=<parlib_install_dir> \
+             --with-lithe=<lithe_install_dir>
 make
 make install
 
