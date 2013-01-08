@@ -116,6 +116,10 @@ case "${target}" in
 	esac
 	;;
 
+  *-*-ros*)
+	config_path="ros posix"
+	;;
+
   *-*-mingw32*)
 	config_path="mingw32 posix"
 	;;
