@@ -31,7 +31,7 @@
    our required headers then reinstante the original visibility.  */
 
 #pragma GCC visibility push(default)
-#include <futex.h>	/* from parlib's pthread library */
+#include_next <futex.h>	/* from ros's pthread library */
 #pragma GCC visibility pop
 
 static inline void
@@ -53,3 +53,4 @@ atomic_write_barrier (void)
 {
   __sync_synchronize ();
 }
+

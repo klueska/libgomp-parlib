@@ -96,6 +96,11 @@ if test $enable_linux_futex = yes; then
 	rm -f conftestx.c conftestx.o
 	;;
   esac
+
+  if test $enable_lithe = yes; then
+    # lithe added in later (at bottom of script), but requires parlib to work
+	config_path="parlib $config_path"
+  fi
 fi
 
 # Other system configury
@@ -117,7 +122,7 @@ case "${target}" in
 	;;
 
   *-*-ros*)
-	config_path="parlib posix"
+	config_path="parlib ros posix"
 	;;
 
   *-*-mingw32*)
@@ -141,3 +146,8 @@ case "${target}" in
 	;;
 
 esac
+
+if test $enable_lithe = yes; then
+  config_path="lithe $config_path"
+fi
+
