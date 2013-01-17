@@ -117,7 +117,7 @@ case "${target}" in
 	;;
 
   *-*-ros*)
-	config_path="ros posix"
+	config_path="parlib posix"
 	;;
 
   *-*-mingw32*)
