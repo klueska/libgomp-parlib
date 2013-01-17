@@ -11,8 +11,8 @@ If you have 'parlib' and 'lithe' installed in a non-standard location, be sure
 and set the --with-parlib and --with-lithe configure options appropriately.
 Otherwise, you can just ignore them.
 
-cd src
-autoreconf --install
+cd libgomp
+./bootstrap
 mkdir build
 cd build
 ../configure --prefix=<install_dir> \
