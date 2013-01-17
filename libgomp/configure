@@ -763,6 +763,7 @@ ac_subst_files=''
 ac_user_opts='
 enable_option_checking
 with_gnu_ld
+enable_lithe
 enable_version_specific_runtime_libs
 enable_generated_files_in_srcdir
 enable_dependency_tracking
@@ -1408,6 +1409,7 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-lithe          Build with Lithe support
   --enable-version-specific-runtime-libs
                           Specify that runtime libraries should be installed
                           in a compiler-specific directory [default=no]
@@ -3886,6 +3888,20 @@ with_gnu_ld=$lt_cv_prog_gnu_ld
 
 
 
+
+# Check whether --enable-lithe was given.
+if test "${enable_lithe+set}" = set; then :
+  enableval=$enable_lithe;
+fi
+
+
+if test "x$enable_lithe" = "xyes"; then :
+
+
+$as_echo "#define USE_LITHE 1" >>confdefs.h
+
+
+fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-version-specific-runtime-libs" >&5
 $as_echo_n "checking for --enable-version-specific-runtime-libs... " >&6; }

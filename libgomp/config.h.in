@@ -131,5 +131,8 @@
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
 
+/* Indicates that Lithe support is to be built */
+#undef USE_LITHE
+
 /* Version number of package */
 #undef VERSION

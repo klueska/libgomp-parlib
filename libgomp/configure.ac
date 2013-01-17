@@ -21,6 +21,14 @@ AC_PREFIX_DEFAULT([/usr])
 # Bring in the Loader
 AM_PROG_LD
 
+AC_ARG_ENABLE([lithe], 
+  AS_HELP_STRING([--enable-lithe], [Build with Lithe support]))
+
+AS_IF([test "x$enable_lithe" = "xyes"], [
+  AC_DEFINE([USE_LITHE], [1],
+            [Indicates that Lithe support is to be built])
+])
+
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
    [Specify that runtime libraries should be installed in a compiler-specific directory],
