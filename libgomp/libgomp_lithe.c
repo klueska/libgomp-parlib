@@ -2,12 +2,8 @@
  * Kevin Klues <klueska@cs.berkeley.edu>
  */
 
-#include <sys/queue.h>
 #include "libgomp_lithe.h"
 #include <parlib/dtls.h>
-#include <parlib/mcs.h>
-#include <lithe/mutex.h>
-#include <lithe/condvar.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>
 
@@ -22,7 +18,7 @@ static void context_unblock(lithe_sched_t *__this, lithe_context_t *context);
 static void context_yield(lithe_sched_t *__this, lithe_context_t *context);
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context);
 
-static const lithe_sched_funcs_t funcs = {
+static const lithe_sched_funcs_t libgomp_lithe_sched_funcs = {
   .hart_request        = hart_request,
   .hart_enter          = hart_enter,
   .hart_return         = hart_return,
@@ -35,35 +31,6 @@ static const lithe_sched_funcs_t funcs = {
 };
 
 typedef void (*start_routine_t)(void*);
-
-struct libgomp_lithe_context {
-  lithe_context_t context;
-  STAILQ_ENTRY(libgomp_lithe_context) link;
-  void (*start_routine)(void *);
-  void *arg;
-  int id;
-};
-STAILQ_HEAD(context_list, libgomp_lithe_context);
-typedef struct context_list context_list_t;
-
-struct child_sched {
-  STAILQ_ENTRY(child_sched) link;
-  lithe_sched_t *sched;
-  int requested_harts;
-};
-STAILQ_HEAD(child_sched_list, child_sched);
-typedef struct child_sched child_sched_t;
-typedef struct child_sched_list child_sched_list_t;
-
-struct libgomp_lithe_sched {
-  lithe_sched_t sched;
-  int num_contexts;
-  lithe_mutex_t mutex;
-  lithe_condvar_t condvar;
-  mcs_lock_t qlock;
-  context_list_t context_list;
-  child_sched_list_t child_sched_list;
-};
 
 static libgomp_lithe_context_t *allocate_context(size_t stack_size)
 {
@@ -119,6 +86,7 @@ static void schedule_context(libgomp_lithe_context_t *context)
 
 void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched)
 {
+  sched->sched.funcs = &libgomp_lithe_sched_funcs;
   sched->num_contexts = 0;
   lithe_mutex_init(&sched->mutex, NULL);
   lithe_condvar_init(&sched->condvar);
@@ -168,7 +136,7 @@ static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t *)__this;
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&sched->qlock, &qnode);
-    child_sched_t *s = STAILQ_FIRST(&sched->child_sched_list);
+    libgomp_lithe_child_sched_t *s = STAILQ_FIRST(&sched->child_sched_list);
     while(s != NULL) { 
       if(s->sched == child) {
         s->requested_harts += k;
@@ -184,7 +152,7 @@ static void child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
   /* Add this child to our list of child schedulers */
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t *)__this;
-  child_sched_t *child_wrapper = (child_sched_t*)malloc(sizeof(child_sched_t));
+  libgomp_lithe_child_sched_t *child_wrapper = (libgomp_lithe_child_sched_t*)malloc(sizeof(libgomp_lithe_child_sched_t));
   child_wrapper->sched = child;
   child_wrapper->requested_harts = 0;
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
@@ -200,12 +168,12 @@ static void child_exit(lithe_sched_t *__this, lithe_sched_t *child)
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t *)__this;
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&sched->qlock, &qnode);
-    child_sched_t *s,*n;
+    libgomp_lithe_child_sched_t *s,*n;
     s = STAILQ_FIRST(&sched->child_sched_list); 
     while(s != NULL) { 
       n = STAILQ_NEXT(s, link);
       if(s->sched == child) {
-        STAILQ_REMOVE(&sched->child_sched_list, s, child_sched, link);
+        STAILQ_REMOVE(&sched->child_sched_list, s, libgomp_lithe_child_sched, link);
         free(s);
         break;
       }
@@ -229,7 +197,7 @@ static void hart_enter(lithe_sched_t *__this)
   mcs_lock_lock(&sched->qlock, &qnode);
     /* If we have child schedulers that have requested harts, prioritize them
      * access to this hart before ourselves */
-    child_sched_t *s = STAILQ_FIRST(&sched->child_sched_list);
+    libgomp_lithe_child_sched_t *s = STAILQ_FIRST(&sched->child_sched_list);
     while(s != NULL) { 
       if(s->requested_harts > 0) {
         struct {
