@@ -37,7 +37,12 @@
 #include "config.h"
 #include "gstdint.h"
 
+#ifdef USE_LITHE
+#include <parlib/dtls.h>
+#include <lithe/lithe.h>
+#else
 #include <pthread.h>
+#endif
 #include <stdbool.h>
 
 #ifdef HAVE_ATTRIBUTE_VISIBILITY
@@ -337,7 +342,7 @@ struct gomp_thread
   /* This semaphore is used for ordered loops.  */
   gomp_sem_t release;
 
-  /* user pthread thread pool */
+  /* user thread pool */
   struct gomp_thread_pool *thread_pool;
 };
 
@@ -356,7 +361,21 @@ struct gomp_thread_pool
 };
 
 /* ... and here is that TLS data.  */
-
+#ifdef USE_LITHE
+#ifndef NO_UTHREAD_TLS
+extern __thread struct gomp_thread gomp_tls_data;
+static inline struct gomp_thread *gomp_thread (void)
+{
+  return &gomp_tls_data;
+}
+#else
+extern dtls_key_t gomp_tls_key;
+static inline struct gomp_thread *gomp_thread (void)
+{
+  return get_dtls (gomp_tls_key);
+}
+#endif
+#else
 #ifdef HAVE_TLS
 extern __thread struct gomp_thread gomp_tls_data;
 static inline struct gomp_thread *gomp_thread (void)
@@ -369,6 +388,7 @@ static inline struct gomp_thread *gomp_thread (void)
 {
   return pthread_getspecific (gomp_tls_key);
 }
+#endif
 #endif
 
 extern struct gomp_task_icv *gomp_new_icv (void);
@@ -387,7 +407,9 @@ static inline struct gomp_task_icv *gomp_icv (bool write)
 }
 
 /* The attributes to be used during thread creation.  */
+#ifndef USE_LITHE
 extern pthread_attr_t gomp_thread_attr;
+#endif
 
 /* Other variables.  */
 
@@ -398,8 +420,12 @@ extern size_t gomp_cpu_affinity_len;
 
 /* affinity.c */
 
+#ifdef USE_LITHE
+extern void gomp_init_affinity (void);
+#else
 extern void gomp_init_affinity (void);
 extern void gomp_init_thread_affinity (pthread_attr_t *);
+#endif
 
 /* alloc.c */
 

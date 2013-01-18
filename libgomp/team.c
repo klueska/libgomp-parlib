@@ -29,18 +29,35 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef USE_LITHE
+#include "libgomp_lithe.h"
+#include <parlib/dtls.h>
+#include <lithe/lithe.h>
+#endif
+
+#ifdef USE_LITHE
+/* This key is for the thread destructor.  */
+dtls_key_t gomp_thread_destructor;
+
+/* This is the libgomp per-thread data structure.  */
+#ifndef NO_UTHREAD_TLS
+__thread struct gomp_thread gomp_tls_data;
+#else
+dtls_key_t gomp_tls_key;
+#endif
+#else // USE_LITHE
 /* This attribute contains PTHREAD_CREATE_DETACHED.  */
 pthread_attr_t gomp_thread_attr;
 
 /* This key is for the thread destructor.  */
 pthread_key_t gomp_thread_destructor;
 
-
 /* This is the libgomp per-thread data structure.  */
 #ifdef HAVE_TLS
 __thread struct gomp_thread gomp_tls_data;
 #else
 pthread_key_t gomp_tls_key;
+#endif
 #endif
 
 
@@ -60,7 +77,11 @@ struct gomp_thread_start_data
 /* This function is a pthread_create entry point.  This contains the idle
    loop in which a thread waits to be called up to become part of a team.  */
 
+#ifdef USE_LITHE
+static void
+#else
 static void *
+#endif
 gomp_thread_start (void *xdata)
 {
   struct gomp_thread_start_data *data = xdata;
@@ -69,12 +90,22 @@ gomp_thread_start (void *xdata)
   void (*local_fn) (void *);
   void *local_data;
 
+#ifdef USE_LITHE 
+#ifndef NO_UTHREAD_TLS
+  thr = &gomp_tls_data;
+#else
+  struct gomp_thread local_thr;
+  thr = &local_thr;
+  set_dtls (gomp_tls_key, thr);
+#endif
+#else
 #ifdef HAVE_TLS
   thr = &gomp_tls_data;
 #else
   struct gomp_thread local_thr;
   thr = &local_thr;
   pthread_setspecific (gomp_tls_key, thr);
+#endif
 #endif
   gomp_sem_init (&thr->release, 0);
 
@@ -126,7 +157,9 @@ gomp_thread_start (void *xdata)
     }
 
   gomp_sem_destroy (&thr->release);
+#ifndef USE_LITHE
   return NULL;
+#endif
 }
 
 
@@ -203,7 +236,11 @@ gomp_free_pool_helper (void *thread_pool)
     = (struct gomp_thread_pool *) thread_pool;
   gomp_barrier_wait_last (&pool->threads_dock);
   gomp_sem_destroy (&gomp_thread ()->release);
+#ifdef USE_LITHE
+  lithe_context_exit();
+#else
   pthread_exit (NULL);
+#endif
 }
 
 /* Free a thread pool and release its threads. */
@@ -259,14 +296,20 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   bool nested;
   struct gomp_thread_pool *pool;
   unsigned i, n, old_threads_used = 0;
+#ifndef USE_LITHE
   pthread_attr_t thread_attr, *attr;
+#endif
 
   thr = gomp_thread ();
   nested = thr->ts.team != NULL;
   if (__builtin_expect (thr->thread_pool == NULL, 0))
     {
       thr->thread_pool = gomp_new_thread_pool ();
+#ifdef USE_LITHE
+      set_dtls(gomp_thread_destructor, thr);
+#else
       pthread_setspecific (gomp_thread_destructor, thr);
+#endif
     }
   pool = thr->thread_pool;
   task = thr->task;
@@ -379,6 +422,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 #endif
     }
 
+#ifndef USE_LITHE
   attr = &gomp_thread_attr;
   if (__builtin_expect (gomp_cpu_affinity != NULL, 0))
     {
@@ -389,6 +433,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 	pthread_attr_setstacksize (&thread_attr, stacksize);
       attr = &thread_attr;
     }
+#endif
 
   start_data = gomp_alloca (sizeof (struct gomp_thread_start_data)
 			    * (nthreads-i));
@@ -396,8 +441,12 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   /* Launch new threads.  */
   for (; i < nthreads; ++i, ++start_data)
     {
+#ifdef USE_LITHE
+      libgomp_lithe_context_t *pt;
+#else
       pthread_t pt;
       int err;
+#endif
 
       start_data->fn = fn;
       start_data->fn_data = data;
@@ -416,16 +465,24 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
       start_data->thread_pool = pool;
       start_data->nested = nested;
 
+#ifndef USE_LITHE
       if (gomp_cpu_affinity != NULL)
 	gomp_init_thread_affinity (attr);
+#endif
 
+#ifdef USE_LITHE
+      libgomp_lithe_context_create (&pt, gomp_thread_start, start_data);
+#else
       err = pthread_create (&pt, attr, gomp_thread_start, start_data);
       if (err != 0)
-	gomp_fatal ("Thread creation failed: %s", strerror (err));
+        gomp_fatal ("Thread creation failed: %s", strerror (err));
+#endif
     }
 
+#ifndef USE_LITHE
   if (__builtin_expect (gomp_cpu_affinity != NULL, 0))
     pthread_attr_destroy (&thread_attr);
+#endif
 
  do_release:
   gomp_barrier_wait (nested ? &team->barrier : &pool->threads_dock);
@@ -517,20 +574,33 @@ initialize_team (void)
 {
   struct gomp_thread *thr;
 
+#ifdef USE_LITHE
+#ifdef NO_UTHREAD_TLS
+  static struct gomp_thread initial_thread_tls_data;
+
+  gomp_tls_key = dtls_key_create (NULL);
+  set_dtls (gomp_tls_key, &initial_thread_tls_data);
+#endif
+  gomp_thread_destructor = dtls_key_create (gomp_free_thread);
+#ifndef NO_UTHREAD_TLS
+  thr = &gomp_tls_data;
+#else
+  thr = &initial_thread_tls_data;
+#endif
+#else 
 #ifndef HAVE_TLS
   static struct gomp_thread initial_thread_tls_data;
 
   pthread_key_create (&gomp_tls_key, NULL);
   pthread_setspecific (gomp_tls_key, &initial_thread_tls_data);
 #endif
-
   if (pthread_key_create (&gomp_thread_destructor, gomp_free_thread) != 0)
     gomp_fatal ("could not create thread pool destructor.");
-
 #ifdef HAVE_TLS
   thr = &gomp_tls_data;
 #else
   thr = &initial_thread_tls_data;
+#endif
 #endif
   gomp_sem_init (&thr->release, 0);
 }
@@ -540,7 +610,11 @@ team_destructor (void)
 {
   /* Without this dlclose on libgomp could lead to subsequent
      crashes.  */
+#ifdef USE_LITHE
+  dtls_key_delete (gomp_thread_destructor);
+#else
   pthread_key_delete (gomp_thread_destructor);
+#endif
 }
 
 struct gomp_task_icv *
@@ -550,6 +624,10 @@ gomp_new_icv (void)
   struct gomp_task *task = gomp_malloc (sizeof (struct gomp_task));
   gomp_init_task (task, NULL, &gomp_global_icv);
   thr->task = task;
+#ifdef USE_LITHE
+  set_dtls (gomp_thread_destructor, thr);
+#else
   pthread_setspecific (gomp_thread_destructor, thr);
+#endif
   return &task->icv;
 }

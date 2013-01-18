@@ -49,6 +49,10 @@
 # define strtoull(ptr, eptr, base) strtoul (ptr, eptr, base)
 #endif
 
+#ifdef USE_LITHE
+#include "libgomp_lithe.h"
+#endif
+
 struct gomp_task_icv gomp_global_icv = {
   .nthreads_var = 1,
   .run_sched_var = GFS_DYNAMIC,
@@ -521,16 +525,20 @@ initialize_env (void)
     gomp_throttled_spin_count_var = gomp_spin_count_var;
 
   /* Not strictly environment related, but ordering constructors is tricky.  */
+#ifndef USE_LITHE
   pthread_attr_init (&gomp_thread_attr);
   pthread_attr_setdetachstate (&gomp_thread_attr, PTHREAD_CREATE_DETACHED);
+#endif
 
   if (parse_stacksize ("OMP_STACKSIZE", &stacksize)
       || parse_stacksize ("GOMP_STACKSIZE", &stacksize))
     {
+
+#ifdef USE_LITHE
+      libgomp_lithe_setstacksize (stacksize);
+#else
       int err;
-
       err = pthread_attr_setstacksize (&gomp_thread_attr, stacksize);
-
 #ifdef PTHREAD_STACK_MIN
       if (err == EINVAL)
 	{
@@ -545,7 +553,9 @@ initialize_env (void)
 #endif
       if (err != 0)
 	gomp_error ("Stack size change failed: %s", strerror (err));
+#endif
     }
+
 }
 
 
