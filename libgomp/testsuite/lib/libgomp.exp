@@ -59,7 +59,8 @@ proc libgomp_init { args } {
     global target_triplet
     global always_ld_library_path
 
-    set blddir [lookfor_file [get_multilibs] libgomp]
+    #set blddir [lookfor_file [get_multilibs] libgomp]
+    set blddir ".."
 
     # We set LC_ALL and LANG to C so that we get the same error
     # messages as expected.
