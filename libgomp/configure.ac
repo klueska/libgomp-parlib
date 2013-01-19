@@ -28,6 +28,7 @@ AS_IF([test "x$enable_lithe" = "xyes"], [
   AC_DEFINE([USE_LITHE], [1],
             [Indicates that Lithe support is to be built])
 ])
+AM_CONDITIONAL([USE_LITHE], [test "$enable_lithe" = yes])
 
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
@@ -301,6 +302,9 @@ if test $enable_shared = yes; then
   link_gomp="-lgomp %{static: $LIBS}"
 else
   link_gomp="-lgomp $LIBS"
+fi
+if test $enable_lithe = yes; then
+  link_gomp="-lithe -lparlib $link_gomp"
 fi
 AC_SUBST(link_gomp)
 

@@ -36,6 +36,7 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@USE_LITHE_TRUE@am__append_1 = libgomp_lithe.c
 subdir = .
 DIST_COMMON = ChangeLog $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/configure $(am__configure_deps) \
@@ -96,12 +97,12 @@ am__installdirs = "$(DESTDIR)$(toolexeclibdir)" "$(DESTDIR)$(infodir)" \
 	"$(DESTDIR)$(fincludedir)" "$(DESTDIR)$(libsubincludedir)" \
 	"$(DESTDIR)$(toolexeclibdir)"
 LTLIBRARIES = $(toolexeclib_LTLIBRARIES)
-libgomp_la_LIBADD =
+@USE_LITHE_TRUE@am__objects_1 = libgomp_lithe.lo
 am_libgomp_la_OBJECTS = alloc.lo barrier.lo critical.lo env.lo \
 	error.lo iter.lo iter_ull.lo loop.lo loop_ull.lo ordered.lo \
 	parallel.lo sections.lo single.lo task.lo team.lo work.lo \
 	lock.lo mutex.lo proc.lo sem.lo bar.lo ptrlock.lo time.lo \
-	fortran.lo affinity.lo libgomp_lithe.lo
+	fortran.lo affinity.lo $(am__objects_1)
 libgomp_la_OBJECTS = $(am_libgomp_la_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/build-aux/depcomp
@@ -299,6 +300,7 @@ AM_CFLAGS = $(XCFLAGS)
 AM_LDFLAGS = $(XLDFLAGS) $(SECTION_LDFLAGS) $(OPT_LDFLAGS)
 toolexeclib_LTLIBRARIES = libgomp.la
 nodist_toolexeclib_HEADERS = libgomp.spec
+@USE_LITHE_TRUE@libgomp_la_LIBADD = -lithe -lparlib
 @LIBGOMP_BUILD_VERSIONED_SHLIB_FALSE@libgomp_version_script = 
 @LIBGOMP_BUILD_VERSIONED_SHLIB_GNU_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_SOL2_FALSE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@libgomp_version_script = -Wl,--version-script,$(top_srcdir)/libgomp.map
 @LIBGOMP_BUILD_VERSIONED_SHLIB_GNU_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_SOL2_TRUE@@LIBGOMP_BUILD_VERSIONED_SHLIB_TRUE@libgomp_version_script = -Wl,--version-script,libgomp.map-sol2
@@ -314,10 +316,9 @@ libgomp_la_LDFLAGS = $(libgomp_version_info) $(libgomp_version_script) \
 libgomp_la_DEPENDENCIES = $(libgomp_version_dep)
 libgomp_la_LINK = $(LINK) $(libgomp_la_LDFLAGS)
 libgomp_la_SOURCES = alloc.c barrier.c critical.c env.c error.c iter.c \
-	iter_ull.c loop.c loop_ull.c ordered.c parallel.c sections.c single.c \
-	task.c team.c work.c lock.c mutex.c proc.c sem.c bar.c ptrlock.c \
-	time.c fortran.c affinity.c libgomp_lithe.c
-
+	iter_ull.c loop.c loop_ull.c ordered.c parallel.c sections.c \
+	single.c task.c team.c work.c lock.c mutex.c proc.c sem.c \
+	bar.c ptrlock.c time.c fortran.c affinity.c $(am__append_1)
 nodist_noinst_HEADERS = libgomp_f.h
 nodist_libsubinclude_HEADERS = omp.h
 @USE_FORTRAN_TRUE@nodist_finclude_HEADERS = omp_lib.h omp_lib.f90 omp_lib.mod omp_lib_kinds.mod

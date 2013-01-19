@@ -701,6 +701,8 @@ target_cpu
 target
 GENINSRC_FALSE
 GENINSRC_TRUE
+USE_LITHE_FALSE
+USE_LITHE_TRUE
 LD
 FGREP
 EGREP
@@ -3902,6 +3904,14 @@ $as_echo "#define USE_LITHE 1" >>confdefs.h
 
 
 fi
+ if test "$enable_lithe" = yes; then
+  USE_LITHE_TRUE=
+  USE_LITHE_FALSE='#'
+else
+  USE_LITHE_TRUE='#'
+  USE_LITHE_FALSE=
+fi
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for --enable-version-specific-runtime-libs" >&5
 $as_echo_n "checking for --enable-version-specific-runtime-libs... " >&6; }
@@ -17644,6 +17654,9 @@ if test $enable_shared = yes; then
 else
   link_gomp="-lgomp $LIBS"
 fi
+if test $enable_lithe = yes; then
+  link_gomp="-lithe -lparlib $link_gomp"
+fi
 
 
  if test "$ac_cv_fc_compiler_gnu" = yes; then
@@ -17849,6 +17862,10 @@ LIBOBJS=$ac_libobjs
 LTLIBOBJS=$ac_ltlibobjs
 
 
+if test -z "${USE_LITHE_TRUE}" && test -z "${USE_LITHE_FALSE}"; then
+  as_fn_error "conditional \"USE_LITHE\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${GENINSRC_TRUE}" && test -z "${GENINSRC_FALSE}"; then
   as_fn_error "conditional \"GENINSRC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
