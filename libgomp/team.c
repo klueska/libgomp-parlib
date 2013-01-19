@@ -40,7 +40,7 @@
 dtls_key_t gomp_thread_destructor;
 
 /* This is the libgomp per-thread data structure.  */
-#ifndef NO_UTHREAD_TLS
+#ifndef PARLIB_NO_UTHREAD_TLS
 __thread struct gomp_thread gomp_tls_data;
 #else
 dtls_key_t gomp_tls_key;
@@ -91,7 +91,7 @@ gomp_thread_start (void *xdata)
   void *local_data;
 
 #ifdef USE_LITHE 
-#ifndef NO_UTHREAD_TLS
+#ifndef PARLIB_NO_UTHREAD_TLS
   thr = &gomp_tls_data;
 #else
   struct gomp_thread local_thr;
@@ -575,14 +575,14 @@ initialize_team (void)
   struct gomp_thread *thr;
 
 #ifdef USE_LITHE
-#ifdef NO_UTHREAD_TLS
+#ifdef PARLIB_NO_UTHREAD_TLS
   static struct gomp_thread initial_thread_tls_data;
 
   gomp_tls_key = dtls_key_create (NULL);
   set_dtls (gomp_tls_key, &initial_thread_tls_data);
 #endif
   gomp_thread_destructor = dtls_key_create (gomp_free_thread);
-#ifndef NO_UTHREAD_TLS
+#ifndef PARLIB_NO_UTHREAD_TLS
   thr = &gomp_tls_data;
 #else
   thr = &initial_thread_tls_data;

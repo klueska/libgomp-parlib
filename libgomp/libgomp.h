@@ -362,7 +362,7 @@ struct gomp_thread_pool
 
 /* ... and here is that TLS data.  */
 #ifdef USE_LITHE
-#ifndef NO_UTHREAD_TLS
+#ifndef PARLIB_NO_UTHREAD_TLS
 extern __thread struct gomp_thread gomp_tls_data;
 static inline struct gomp_thread *gomp_thread (void)
 {
