@@ -59,7 +59,6 @@ static libgomp_lithe_context_t *create_context(size_t stack_size)
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&zombie_context_list_lock, &qnode);
   if((c = STAILQ_FIRST(&zombie_context_list)) != NULL) {
-    printf("I am in zombie land\n");
     STAILQ_REMOVE_HEAD(&zombie_context_list, link);
     mcs_lock_unlock(&zombie_context_list_lock, &qnode);
     if(c->context.stack.size != stack_size) {
@@ -74,7 +73,6 @@ static libgomp_lithe_context_t *create_context(size_t stack_size)
   }
   /* Otherwise create a new lithe context and initialize it from scratch */
   else {
-    printf("I am in creation land\n");
     mcs_lock_unlock(&zombie_context_list_lock, &qnode);
     c = (libgomp_lithe_context_t*)malloc(sizeof(libgomp_lithe_context_t));
     assert(c);
