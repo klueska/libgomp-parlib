@@ -40,6 +40,7 @@
 #ifdef USE_LITHE
 #include <parlib/dtls.h>
 #include <lithe/lithe.h>
+#include "libgomp_lithe.h"
 #else
 #include <pthread.h>
 #endif

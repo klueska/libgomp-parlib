@@ -9,6 +9,10 @@
 
 static size_t __context_stack_size = 1<<20;
 
+mcs_lock_t zombie_context_list_lock;
+static libgomp_lithe_context_list_t zombie_context_list = 
+  STAILQ_HEAD_INITIALIZER(zombie_context_list);
+
 static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
 static void child_enter(lithe_sched_t *__this, lithe_sched_t *child);
 static void child_exit(lithe_sched_t *__this, lithe_sched_t *child);
@@ -32,25 +36,6 @@ static const lithe_sched_funcs_t libgomp_lithe_sched_funcs = {
 
 typedef void (*start_routine_t)(void*);
 
-static libgomp_lithe_context_t *allocate_context(size_t stack_size)
-{
-  libgomp_lithe_context_t *c = (libgomp_lithe_context_t*)malloc(sizeof(libgomp_lithe_context_t));
-  assert(c);
-
-  c->context.stack.size = stack_size;
-  c->context.stack.bottom = malloc(c->context.stack.size);
-  assert(c->context.stack.bottom);
-  return c;
-}
-
-static void free_context(libgomp_lithe_context_t *c)
-{
-  assert(c);
-  assert(c->context.stack.bottom);
-  free(c->context.stack.bottom);
-  free(c);
-}
-  
 static void start_routine_wrapper(void *__arg)
 {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
@@ -64,6 +49,63 @@ static void start_routine_wrapper(void *__arg)
   if(sched->num_contexts == 0)
     lithe_condvar_signal(&sched->condvar);
   lithe_mutex_unlock(&sched->mutex);
+}
+  
+static libgomp_lithe_context_t *create_context(size_t stack_size)
+{
+  libgomp_lithe_context_t *c = NULL;
+
+  /* Try and pull a context from the zombie list and reinitialize it */
+  mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
+  mcs_lock_lock(&zombie_context_list_lock, &qnode);
+  if((c = STAILQ_FIRST(&zombie_context_list)) != NULL) {
+    printf("I am in zombie land\n");
+    STAILQ_REMOVE_HEAD(&zombie_context_list, link);
+    mcs_lock_unlock(&zombie_context_list_lock, &qnode);
+    if(c->context.stack.size != stack_size) {
+      assert(c->context.stack.bottom);
+      free(c->context.stack.bottom);
+      c->context.stack.size = stack_size;
+      c->context.stack.bottom = malloc(c->context.stack.size);
+      assert(c->context.stack.bottom);
+    }
+    lithe_context_reinit((lithe_context_t *)c, 
+      (start_routine_t)&start_routine_wrapper, c);
+  }
+  /* Otherwise create a new lithe context and initialize it from scratch */
+  else {
+    printf("I am in creation land\n");
+    mcs_lock_unlock(&zombie_context_list_lock, &qnode);
+    c = (libgomp_lithe_context_t*)malloc(sizeof(libgomp_lithe_context_t));
+    assert(c);
+
+    c->context.stack.size = stack_size;
+    c->context.stack.bottom = malloc(c->context.stack.size);
+    assert(c->context.stack.bottom);
+
+    lithe_context_init((lithe_context_t *)c, 
+      (start_routine_t)&start_routine_wrapper, c);
+  }
+  return c;
+}
+
+static void destroy_context(libgomp_lithe_context_t *c)
+{
+  assert(c);
+  /* If we are supposed to zobmify this context, add it to the zombie list */
+  if(c->make_zombie) {
+    mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
+    mcs_lock_lock(&zombie_context_list_lock, &qnode);
+      STAILQ_INSERT_TAIL(&zombie_context_list, c, link);
+    mcs_lock_unlock(&zombie_context_list_lock, &qnode);
+  }
+  /* Otherwise, destroy it completely */
+  else {
+    lithe_context_cleanup((lithe_context_t*)c);
+    assert(c->context.stack.bottom);
+    free(c->context.stack.bottom);
+    free(c);
+  }
 }
   
 static void unlock_mcs_lock(void *arg) {
@@ -108,16 +150,24 @@ void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   void (*start_routine)(void*), void *arg)
 {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-  libgomp_lithe_context_t *context = allocate_context(__context_stack_size);
-  lithe_context_init((lithe_context_t *)context, 
-    (start_routine_t)&start_routine_wrapper, context);
+  libgomp_lithe_context_t *context = create_context(__context_stack_size);
+  *__context = context;
   context->start_routine = start_routine;
   context->arg = arg;
+  context->make_zombie = true;
+
   lithe_mutex_lock(&sched->mutex);
   context->id = sched->num_contexts++;
   lithe_mutex_unlock(&sched->mutex);
+
   schedule_context(context);
-  *__context = context;
+}
+
+void libgomp_lithe_context_exit()
+{
+  libgomp_lithe_context_t *self = (libgomp_lithe_context_t*)lithe_context_self();
+  self->make_zombie = false;
+  lithe_context_exit();
 }
 
 void libgomp_lithe_sched_joinAll()
@@ -241,7 +291,6 @@ static void context_yield(lithe_sched_t *__this, lithe_context_t *context)
 
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 {
-  lithe_context_cleanup(context);
-  free_context((libgomp_lithe_context_t*)context);
+  destroy_context((libgomp_lithe_context_t*)context);
 }
 

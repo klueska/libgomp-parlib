@@ -237,7 +237,7 @@ gomp_free_pool_helper (void *thread_pool)
   gomp_barrier_wait_last (&pool->threads_dock);
   gomp_sem_destroy (&gomp_thread ()->release);
 #ifdef USE_LITHE
-  lithe_context_exit();
+  libgomp_lithe_context_exit();
 #else
   pthread_exit (NULL);
 #endif
@@ -301,7 +301,26 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 #endif
 
   thr = gomp_thread ();
+#ifdef USE_LITHE
+  /* OMP uses the 'nested' variable to optimize the reuse of threads across
+   * multiple teams all spawned consecutively from the same nesting level. 
+   * 
+   * In the context of lithe, this optimization doesn't really make sense.
+   * Using it would require us to support allowing the same lithe context to
+   * continuing running across two different lithe scheduler invocations, even
+   * after the one it was created in had exited. This completely breaks the
+   * symmetric model used by lithe that follows the path of
+   * team_create->sched_enter->spawn_threads->join_threads->sched_exit. 
+   *
+   * Therefore, instead of supporting this optimization, we opt to bypass it by
+   * always setting 'nested' to TRUE. To compensate, we leverage the fact that
+   * lithe_contexts are a completely user level construct and use an internal
+   * pool of contexts to make the lithe_context_create() path fast. 
+   */
+  nested = TRUE;
+#else
   nested = thr->ts.team != NULL;
+#endif
   if (__builtin_expect (thr->thread_pool == NULL, 0))
     {
       thr->thread_pool = gomp_new_thread_pool ();
@@ -333,6 +352,12 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   thr->ts.static_trip = 0;
   thr->task = &team->implicit_task[0];
   gomp_init_task (thr->task, task, icv);
+
+#ifdef USE_LITHE
+  libgomp_lithe_sched_t *lithe_sched = malloc(sizeof(libgomp_lithe_sched_t));
+  libgomp_lithe_sched_ctor(lithe_sched);
+  lithe_sched_enter((lithe_sched_t*)lithe_sched);
+#endif
 
   if (nthreads == 1)
     return;
@@ -465,14 +490,12 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
       start_data->thread_pool = pool;
       start_data->nested = nested;
 
-#ifndef USE_LITHE
-      if (gomp_cpu_affinity != NULL)
-	gomp_init_thread_affinity (attr);
-#endif
-
 #ifdef USE_LITHE
       libgomp_lithe_context_create (&pt, gomp_thread_start, start_data);
 #else
+      if (gomp_cpu_affinity != NULL)
+	gomp_init_thread_affinity (attr);
+
       err = pthread_create (&pt, attr, gomp_thread_start, start_data);
       if (err != 0)
         gomp_fatal ("Thread creation failed: %s", strerror (err));
@@ -552,6 +575,14 @@ gomp_team_end (void)
   gomp_sem_destroy (&team->master_release);
 #ifndef HAVE_SYNC_BUILTINS
   gomp_mutex_destroy (&team->work_share_list_free_lock);
+#endif
+
+#ifdef USE_LITHE
+    libgomp_lithe_sched_joinAll();
+    libgomp_lithe_sched_t *lithe_sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+    libgomp_lithe_sched_dtor(lithe_sched);
+    lithe_sched_exit();
+    free(lithe_sched);
 #endif
 
   if (__builtin_expect (thr->ts.team != NULL, 0)
