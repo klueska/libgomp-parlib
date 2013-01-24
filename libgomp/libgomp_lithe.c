@@ -51,11 +51,12 @@ static void start_routine_wrapper(void *__arg)
   lithe_mutex_unlock(&sched->mutex);
 }
   
-static libgomp_lithe_context_t *create_context(size_t stack_size)
+static libgomp_lithe_context_t *maybe_recycle_context(size_t stack_size)
 {
   libgomp_lithe_context_t *c = NULL;
 
-  /* Try and pull a context from the zombie list and reinitialize it */
+  /* Try and pull a context from the zombie list and recycle for it use in the
+   * current scheduler */
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&zombie_context_list_lock, &qnode);
   if((c = STAILQ_FIRST(&zombie_context_list)) != NULL) {
@@ -68,22 +69,29 @@ static libgomp_lithe_context_t *create_context(size_t stack_size)
       c->context.stack.bottom = malloc(c->context.stack.size);
       assert(c->context.stack.bottom);
     }
-    lithe_context_reinit((lithe_context_t *)c, 
+    lithe_context_recycle((lithe_context_t *)c, 
       (start_routine_t)&start_routine_wrapper, c);
   }
-  /* Otherwise create a new lithe context and initialize it from scratch */
   else {
     mcs_lock_unlock(&zombie_context_list_lock, &qnode);
-    c = (libgomp_lithe_context_t*)malloc(sizeof(libgomp_lithe_context_t));
-    assert(c);
-
-    c->context.stack.size = stack_size;
-    c->context.stack.bottom = malloc(c->context.stack.size);
-    assert(c->context.stack.bottom);
-
-    lithe_context_init((lithe_context_t *)c, 
-      (start_routine_t)&start_routine_wrapper, c);
   }
+  return c;
+}
+
+static libgomp_lithe_context_t *create_context(size_t stack_size)
+{
+  /* Create a new lithe context and initialize it from scratch */
+  libgomp_lithe_context_t *c = 
+    (libgomp_lithe_context_t*)malloc(sizeof(libgomp_lithe_context_t));
+  assert(c);
+
+  c->context.stack.size = stack_size;
+  c->context.stack.bottom = malloc(c->context.stack.size);
+  assert(c->context.stack.bottom);
+
+  lithe_context_init((lithe_context_t *)c, 
+    (start_routine_t)&start_routine_wrapper, c);
+
   return c;
 }
 
@@ -148,15 +156,20 @@ void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   void (*start_routine)(void*), void *arg)
 {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-  libgomp_lithe_context_t *context = create_context(__context_stack_size);
-  *__context = context;
-  context->start_routine = start_routine;
-  context->arg = arg;
-  context->make_zombie = true;
 
   lithe_mutex_lock(&sched->mutex);
-  context->id = sched->num_contexts++;
+  int context_id = sched->num_contexts++;
   lithe_mutex_unlock(&sched->mutex);
+
+  libgomp_lithe_context_t *context;
+  if((context = maybe_recycle_context(__context_stack_size)) == NULL) {
+    context = create_context(__context_stack_size);
+    context->id = context_id;
+    context->make_zombie = true;
+  }
+  context->start_routine = start_routine;
+  context->arg = arg;
+  *__context = context;
 
   schedule_context(context);
 }

@@ -492,6 +492,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 
 #ifdef USE_LITHE
       libgomp_lithe_context_create (&pt, gomp_thread_start, start_data);
+      //start_data->ts.team_id = pt->id;
 #else
       if (gomp_cpu_affinity != NULL)
 	gomp_init_thread_affinity (attr);
