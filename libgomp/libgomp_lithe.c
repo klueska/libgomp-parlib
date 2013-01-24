@@ -38,17 +38,10 @@ typedef void (*start_routine_t)(void*);
 
 static void start_routine_wrapper(void *__arg)
 {
-  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
   libgomp_lithe_context_t *self = (libgomp_lithe_context_t*)__arg;
 
   self->start_routine(self->arg);
   destroy_dtls();
-
-  lithe_mutex_lock(&sched->mutex);
-  sched->num_contexts--;
-  if(sched->num_contexts == 0)
-    lithe_condvar_signal(&sched->condvar);
-  lithe_mutex_unlock(&sched->mutex);
 }
   
 static libgomp_lithe_context_t *maybe_recycle_context(size_t stack_size)
@@ -69,7 +62,7 @@ static libgomp_lithe_context_t *maybe_recycle_context(size_t stack_size)
       c->context.stack.bottom = malloc(c->context.stack.size);
       assert(c->context.stack.bottom);
     }
-    lithe_context_recycle((lithe_context_t *)c, 
+    lithe_context_reinit((lithe_context_t *)c, 
       (start_routine_t)&start_routine_wrapper, c);
   }
   else {
@@ -155,21 +148,19 @@ void libgomp_lithe_setstacksize(size_t stack_size)
 void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   void (*start_routine)(void*), void *arg)
 {
-  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-
-  lithe_mutex_lock(&sched->mutex);
-  int context_id = sched->num_contexts++;
-  lithe_mutex_unlock(&sched->mutex);
-
   libgomp_lithe_context_t *context;
   if((context = maybe_recycle_context(__context_stack_size)) == NULL) {
     context = create_context(__context_stack_size);
-    context->id = context_id;
     context->make_zombie = true;
   }
   context->start_routine = start_routine;
   context->arg = arg;
   *__context = context;
+
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+  lithe_mutex_lock(&sched->mutex);
+  sched->num_contexts++;
+  lithe_mutex_unlock(&sched->mutex);
 
   schedule_context(context);
 }
@@ -181,7 +172,28 @@ void libgomp_lithe_context_exit()
   lithe_context_exit();
 }
 
-void libgomp_lithe_sched_joinAll()
+void libgomp_lithe_context_rebind_sched()
+{
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+  lithe_context_t *self = lithe_context_self();
+  lithe_context_reassociate(self, &sched->sched);
+
+  lithe_mutex_lock(&sched->mutex);
+  sched->num_contexts++;
+  lithe_mutex_unlock(&sched->mutex);
+}
+
+void libgomp_lithe_context_signal_completed()
+{
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+  lithe_mutex_lock(&sched->mutex);
+  sched->num_contexts--;
+  if(sched->num_contexts == 0)
+    lithe_condvar_signal(&sched->condvar);
+  lithe_mutex_unlock(&sched->mutex);
+}
+
+void libgomp_lithe_sched_join_completed()
 {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
   lithe_mutex_lock(&sched->mutex);

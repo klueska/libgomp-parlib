@@ -17,7 +17,6 @@ struct libgomp_lithe_context {
   void (*start_routine)(void *);
   void *arg;
   bool make_zombie;
-  int id;
 };
 STAILQ_HEAD(libgomp_lithe_context_list, libgomp_lithe_context);
 typedef struct libgomp_lithe_context libgomp_lithe_context_t;
@@ -49,6 +48,9 @@ void libgomp_lithe_sched_dtor(libgomp_lithe_sched_t* sched);
 void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   void (*start_routine)(void*), void *arg);
 void libgomp_lithe_context_exit();
-void libgomp_lithe_sched_joinAll();
+void libgomp_lithe_context_rebind_sched();
+void libgomp_lithe_context_signal_started();
+void libgomp_lithe_context_signal_completed();
+void libgomp_lithe_sched_join_completed();
 
 #endif // LIBGOMP_LITHE_H
