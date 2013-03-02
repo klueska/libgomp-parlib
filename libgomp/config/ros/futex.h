@@ -32,6 +32,7 @@
 
 #pragma GCC visibility push(default)
 #include_next <futex.h>	/* from ros's pthread library */
+#include "internal/assert.h"
 #pragma GCC visibility pop
 
 static inline void
