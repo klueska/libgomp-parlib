@@ -32,6 +32,7 @@
 
 #pragma GCC visibility push(default)
 #include <lithe/futex.h>	
+#include "internal/assert.h"
 #pragma GCC visibility pop
 
 static inline void
