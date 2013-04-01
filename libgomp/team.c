@@ -116,7 +116,7 @@ gomp_thread_start (void *xdata)
   thr->ts = data->ts;
   thr->task = data->task;
 #ifdef USE_LITHE 
-  thr->context = lithe_context_self();
+  thr->context = (libgomp_lithe_context_t*)lithe_context_self();
 #endif
 
   thr->ts.team->ordered_release[thr->ts.team_id] = &thr->release;

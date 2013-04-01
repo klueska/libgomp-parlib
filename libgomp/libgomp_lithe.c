@@ -172,15 +172,11 @@ void libgomp_lithe_context_exit()
   lithe_context_exit();
 }
 
-void libgomp_lithe_context_rebind_sched()
+void libgomp_lithe_context_rebind_sched(libgomp_lithe_context_t *c,
+                                        libgomp_lithe_sched_t *s)
 {
-  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-  lithe_context_t *self = lithe_context_self();
-  lithe_context_reassociate(self, &sched->sched);
-
-  lithe_mutex_lock(&sched->mutex);
-  sched->num_contexts++;
-  lithe_mutex_unlock(&sched->mutex);
+  lithe_context_reassociate(&c->context, &s->sched);
+  __sync_fetch_and_add(&s->num_contexts, 1);
 }
 
 void libgomp_lithe_context_signal_completed()

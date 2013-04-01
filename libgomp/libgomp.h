@@ -331,7 +331,7 @@ struct gomp_thread
 {
 #ifdef USE_LITHE
   /* The lithe context associated with this gomp_thread */
-  lithe_context_t *context;
+  libgomp_lithe_context_t *context;
 #endif
   /* This is the function that the thread should run upon launch.  */
   void (*fn) (void *data);
