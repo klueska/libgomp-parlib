@@ -11,25 +11,20 @@
 #include <lithe/condvar.h>
 #include <string.h>
 
-struct libgomp_lithe_context {
+typedef struct libgomp_lithe_context {
   lithe_context_t context;
-  STAILQ_ENTRY(libgomp_lithe_context) link;
   void (*start_routine)(void *);
   void *arg;
   bool make_zombie;
-};
-STAILQ_HEAD(libgomp_lithe_context_list, libgomp_lithe_context);
-typedef struct libgomp_lithe_context libgomp_lithe_context_t;
-typedef struct libgomp_lithe_context_list libgomp_lithe_context_list_t;
+} libgomp_lithe_context_t;
 
-struct libgomp_lithe_child_sched {
-  STAILQ_ENTRY(libgomp_lithe_child_sched) link;
+typedef struct libgomp_lithe_child_sched {
+  TAILQ_ENTRY(libgomp_lithe_child_sched) link;
   lithe_sched_t *sched;
   int requested_harts;
-};
-STAILQ_HEAD(libgomp_lithe_child_sched_list, libgomp_lithe_child_sched);
-typedef struct libgomp_lithe_child_sched libgomp_lithe_child_sched_t;
-typedef struct libgomp_lithe_child_sched_list libgomp_lithe_child_sched_list_t;
+} libgomp_lithe_child_sched_t;
+TAILQ_HEAD(libgomp_lithe_child_sched_queue, libgomp_lithe_child_sched);
+typedef struct libgomp_lithe_child_sched_queue libgomp_lithe_child_sched_queue_t;
 
 struct libgomp_lithe_sched {
   lithe_sched_t sched;
@@ -37,8 +32,8 @@ struct libgomp_lithe_sched {
   lithe_mutex_t mutex;
   lithe_condvar_t condvar;
   mcs_lock_t qlock;
-  libgomp_lithe_context_list_t context_list;
-  libgomp_lithe_child_sched_list_t child_sched_list;
+  lithe_context_queue_t context_queue;
+  libgomp_lithe_child_sched_queue_t child_sched_queue;
 };
 typedef struct libgomp_lithe_sched libgomp_lithe_sched_t;
 
