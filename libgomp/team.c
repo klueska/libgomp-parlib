@@ -573,8 +573,8 @@ gomp_team_end (void)
 #endif
 
 #ifdef USE_LITHE
-    libgomp_lithe_sched_join_completed();
     libgomp_lithe_sched_t *lithe_sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+    libgomp_lithe_sched_join_completed();
     libgomp_lithe_sched_dtor(lithe_sched);
     lithe_sched_exit();
     free(lithe_sched);

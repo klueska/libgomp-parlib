@@ -10,11 +10,13 @@
 #include <lithe/mutex.h>
 #include <lithe/condvar.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct libgomp_lithe_context {
   lithe_context_t context;
   void (*start_routine)(void *);
   void *arg;
+  bool completed;
   bool make_zombie;
 } libgomp_lithe_context_t;
 
@@ -28,6 +30,8 @@ typedef struct libgomp_lithe_child_sched_queue libgomp_lithe_child_sched_queue_t
 
 struct libgomp_lithe_sched {
   lithe_sched_t sched;
+  lithe_context_t *main_context;
+  bool join_completed;
   int num_contexts;
   lithe_mutex_t mutex;
   lithe_condvar_t condvar;

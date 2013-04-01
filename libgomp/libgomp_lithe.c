@@ -18,6 +18,7 @@ static void child_enter(lithe_sched_t *__this, lithe_sched_t *child);
 static void child_exit(lithe_sched_t *__this, lithe_sched_t *child);
 static void hart_return(lithe_sched_t *__this, lithe_sched_t *child);
 static void hart_enter(lithe_sched_t *__this);
+static void context_block(lithe_sched_t *__this, lithe_context_t *context);
 static void context_unblock(lithe_sched_t *__this, lithe_context_t *context);
 static void context_yield(lithe_sched_t *__this, lithe_context_t *context);
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context);
@@ -28,7 +29,7 @@ static const lithe_sched_funcs_t libgomp_lithe_sched_funcs = {
   .hart_return         = hart_return,
   .child_enter         = child_enter,
   .child_exit          = child_exit,
-  .context_block       = __context_block_default,
+  .context_block       = context_block,
   .context_unblock     = context_unblock,
   .context_yield       = context_yield,
   .context_exit        = context_exit
@@ -155,16 +156,15 @@ void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
     context = create_context(__context_stack_size);
     context->make_zombie = true;
   }
+  context->completed = false;
   context->start_routine = start_routine;
   context->arg = arg;
   *__context = context;
 
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-  lithe_mutex_lock(&sched->mutex);
-  sched->num_contexts++;
-  lithe_mutex_unlock(&sched->mutex);
+  __sync_fetch_and_add(&sched->num_contexts, 1);
 
-  schedule_context(context);
+  schedule_context(&context->context);
 }
 
 void libgomp_lithe_context_exit()
@@ -297,6 +297,23 @@ static void hart_enter(lithe_sched_t *__this)
   else
     lithe_context_run((lithe_context_t *)context);
   assert(0);
+}
+  
+static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
+{
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)__this;
+  if(__context == sched->main_context)
+    return;
+
+  libgomp_lithe_context_t *context = (libgomp_lithe_context_t*)__context;
+  if(context->completed) {
+    if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0) {
+      while(sched->main_context == NULL && !sched->join_completed)
+        cpu_relax();
+      if(sched->main_context)
+        lithe_context_unblock(sched->main_context);
+    }
+  }
 }
   
 static void context_unblock(lithe_sched_t *__this, lithe_context_t *context)
