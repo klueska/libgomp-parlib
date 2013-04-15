@@ -49,7 +49,6 @@ void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
 void libgomp_lithe_context_exit();
 void libgomp_lithe_context_rebind_sched(libgomp_lithe_context_t *c,
                                         libgomp_lithe_sched_t *s);
-void libgomp_lithe_context_rebind_sched();
 void libgomp_lithe_context_signal_started();
 void libgomp_lithe_context_signal_completed();
 void libgomp_lithe_sched_join_completed();
