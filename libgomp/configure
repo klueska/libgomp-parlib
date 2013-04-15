@@ -779,6 +779,8 @@ enable_maintainer_mode
 enable_linux_futex
 enable_tls
 enable_symvers
+with_parlib
+with_lithe
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1441,6 +1443,10 @@ Optional Packages:
                           both]
   --with-sysroot=DIR Search for dependent libraries within DIR
                         (or the compiler's sysroot if not specified).
+  --with-parlib           path to your parlib installation if not in a
+                          standard location
+  --with-lithe            path to your lithe installation if not in a standard
+                          location
 
 Some influential environment variables:
   CC          C compiler command
@@ -17764,6 +17770,161 @@ CFLAGS="$save_CFLAGS"
 ac_config_files="$ac_config_files omp.h omp_lib.h omp_lib.f90 libgomp_f.h"
 
 ac_config_files="$ac_config_files Makefile testsuite/Makefile libgomp.spec"
+
+
+# Add parlib -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+
+# Check whether --with-parlib was given.
+if test "${with_parlib+set}" = set; then :
+  withval=$with_parlib; PARLIBPATH="$withval"
+else
+  with_parlib=no
+fi
+
+
+CFLAGS="$CFLAGS -I$PARLIBPATH/include"
+CXXFLAGS="$CXXFLAGS -I$PARLIBPATH/include"
+LDFLAGS="$LDFLAGS -L$PARLIBPATH/lib"
+
+# Add lithe -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+
+# Check whether --with-lithe was given.
+if test "${with_lithe+set}" = set; then :
+  withval=$with_lithe; LITHEPATH="$withval"
+else
+  with_lithe=no
+fi
+
+
+CFLAGS="$CFLAGS -I$LITHEPATH/include"
+CXXFLAGS="$CXXFLAGS -I$LITHEPATH/include"
+LDFLAGS="$LDFLAGS -L$LITHEPATH/lib"
+
+# Check whether LIBRARY exists and contains FUNCT
+# Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
+#AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
+
+# Check for parlib
+save_LDFLAGS="$LDFLAGS"
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS -static -lpthread"
+LIBS="$LIBS -lpthread"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uthread_init in -lparlib" >&5
+$as_echo_n "checking for uthread_init in -lparlib... " >&6; }
+if test "${ac_cv_lib_parlib_uthread_init+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lparlib  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char uthread_init ();
+int
+main ()
+{
+return uthread_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_parlib_uthread_init=yes
+else
+  ac_cv_lib_parlib_uthread_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_parlib_uthread_init" >&5
+$as_echo "$ac_cv_lib_parlib_uthread_init" >&6; }
+if test "x$ac_cv_lib_parlib_uthread_init" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBPARLIB 1
+_ACEOF
+
+  LIBS="-lparlib $LIBS"
+
+else
+
+    echo "Error! You need to have parlib installed on your system in order to build libgomp-lithe!"
+    echo "Try setting --with-parlib=<parlib_install_dir>"
+    echo "See 'configure --help' for details."
+    exit -1
+
+fi
+
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
+
+# Check for lithe
+save_LDFLAGS="$LDFLAGS"
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS -static -lpthread"
+LIBS="$LIBS -lparlib -lpthread"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for lithe_sched_enter in -lithe" >&5
+$as_echo_n "checking for lithe_sched_enter in -lithe... " >&6; }
+if test "${ac_cv_lib_ithe_lithe_sched_enter+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lithe  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char lithe_sched_enter ();
+int
+main ()
+{
+return lithe_sched_enter ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_ithe_lithe_sched_enter=yes
+else
+  ac_cv_lib_ithe_lithe_sched_enter=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ithe_lithe_sched_enter" >&5
+$as_echo "$ac_cv_lib_ithe_lithe_sched_enter" >&6; }
+if test "x$ac_cv_lib_ithe_lithe_sched_enter" = x""yes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBITHE 1
+_ACEOF
+
+  LIBS="-lithe $LIBS"
+
+else
+
+    echo "Error! You need to have lithe installed on your system in order to build libgomp-lithe!"
+    echo "Try setting --with-lithe=<lithe_install_dir>"
+    echo "See 'configure --help' for details."
+    exit -1
+
+fi
+
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
