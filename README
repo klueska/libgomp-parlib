@@ -1,10 +1,10 @@
-libgomp-lithe - README
+Libgomp-Lithe - README
 For questions or comments, please contact: Kevin Klues <klueska@cs.berkeley.edu>
 
 This includes a lithe "ported" implementation of libgomp ripped out of
 gcc-4.6.1
 
-The library built is called libgomp-lithe
+The library built is called libgomp
 
 To install this library, simply follow the standard GNU installation procedure.
 If you have 'parlib' and 'lithe' installed in a non-standard location, be sure
@@ -16,6 +16,7 @@ cd libgomp
 mkdir build
 cd build
 ../configure --prefix=<install_dir> \
+             --enable-lithe \
              --with-parlib=<parlib_install_dir> \
              --with-lithe=<lithe_install_dir>
 make

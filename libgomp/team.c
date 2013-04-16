@@ -115,6 +115,9 @@ gomp_thread_start (void *xdata)
   thr->thread_pool = data->thread_pool;
   thr->ts = data->ts;
   thr->task = data->task;
+#ifdef USE_LITHE 
+  thr->context = (libgomp_lithe_context_t*)lithe_context_self();
+#endif
 
   thr->ts.team->ordered_release[thr->ts.team_id] = &thr->release;
 
@@ -154,10 +157,6 @@ gomp_thread_start (void *xdata)
 	  libgomp_lithe_context_signal_completed();
 #endif
 	  gomp_barrier_wait (&pool->threads_dock);
-#ifdef USE_LITHE
-      if(thr->fn)
-	    libgomp_lithe_context_rebind_sched();
-#endif
 
 	  local_fn = thr->fn;
 	  local_data = thr->data;
@@ -404,6 +403,10 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 	  nthr->fn = fn;
 	  nthr->data = data;
 	  team->ordered_release[i] = &nthr->release;
+#ifdef USE_LITHE
+	  libgomp_lithe_context_rebind_sched(nthr->context,
+        (libgomp_lithe_sched_t*)lithe_sched_current());
+#endif
 	}
 
       if (i == nthreads)
@@ -570,8 +573,8 @@ gomp_team_end (void)
 #endif
 
 #ifdef USE_LITHE
-    libgomp_lithe_sched_join_completed();
     libgomp_lithe_sched_t *lithe_sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+    libgomp_lithe_sched_join_completed();
     libgomp_lithe_sched_dtor(lithe_sched);
     lithe_sched_exit();
     free(lithe_sched);

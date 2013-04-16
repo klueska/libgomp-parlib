@@ -371,4 +371,61 @@ CFLAGS="$save_CFLAGS"
 
 AC_CONFIG_FILES(omp.h omp_lib.h omp_lib.f90 libgomp_f.h)
 AC_CONFIG_FILES(Makefile testsuite/Makefile libgomp.spec)
+
+# Add parlib -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+AC_ARG_WITH([parlib],
+  [AS_HELP_STRING([--with-parlib],
+    [path to your parlib installation if not in a standard location])],
+  [PARLIBPATH="$withval"],
+  [with_parlib=no])
+
+CFLAGS="$CFLAGS -I$PARLIBPATH/include"
+CXXFLAGS="$CXXFLAGS -I$PARLIBPATH/include"
+LDFLAGS="$LDFLAGS -L$PARLIBPATH/lib"
+          
+# Add lithe -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+AC_ARG_WITH([lithe],
+  [AS_HELP_STRING([--with-lithe],
+    [path to your lithe installation if not in a standard location])],
+  [LITHEPATH="$withval"],
+  [with_lithe=no])
+
+CFLAGS="$CFLAGS -I$LITHEPATH/include"
+CXXFLAGS="$CXXFLAGS -I$LITHEPATH/include"
+LDFLAGS="$LDFLAGS -L$LITHEPATH/lib"
+          
+# Check whether LIBRARY exists and contains FUNCT
+# Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
+#AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
+
+# Check for parlib
+save_LDFLAGS="$LDFLAGS" 
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS -static -lpthread" 
+LIBS="$LIBS -lpthread" 
+AC_CHECK_LIB(parlib, uthread_init, [], [
+    echo "Error! You need to have parlib installed on your system in order to build libgomp-lithe!"
+    echo "Try setting --with-parlib=<parlib_install_dir>"
+    echo "See 'configure --help' for details."
+    exit -1
+])
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
+
+# Check for lithe
+save_LDFLAGS="$LDFLAGS" 
+save_LIBS="$LIBS"
+LDFLAGS="$LDFLAGS -static -lpthread" 
+LIBS="$LIBS -lparlib -lpthread" 
+AC_CHECK_LIB(ithe, lithe_sched_enter, [], [
+    echo "Error! You need to have lithe installed on your system in order to build libgomp-lithe!"
+    echo "Try setting --with-lithe=<lithe_install_dir>"
+    echo "See 'configure --help' for details."
+    exit -1
+])
+LDFLAGS="$save_LDFLAGS"
+LIBS="$save_LIBS"
+
 AC_OUTPUT
