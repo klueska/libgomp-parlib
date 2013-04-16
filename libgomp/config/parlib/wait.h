@@ -39,11 +39,16 @@
 
 static inline void do_wait (int *addr, int val)
 {
-  /* The Linux implementation of do_wait spins for a while before calling
-   * futex_wait.  We don't need to do so because true user-level futexes
-   * are fast.  Furthermore, if the thread that would call futex_wake were
-   * descheduled, spinning would be disastrous. */
-  futex_wait(addr, val);
+  unsigned long long i, count = gomp_spin_count_var;
+
+  if (__builtin_expect (gomp_managed_threads > gomp_available_cpus, 0))
+    count = gomp_throttled_spin_count_var;
+  for (i = 0; i < count; i++)
+    if (__builtin_expect (*addr != val, 0))
+      return;
+    else
+      cpu_relax ();
+  futex_wait (addr, val);
 }
 
 #ifdef HAVE_ATTRIBUTE_VISIBILITY
