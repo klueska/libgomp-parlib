@@ -31,7 +31,7 @@ typedef struct libgomp_lithe_child_sched_queue libgomp_lithe_child_sched_queue_t
 struct libgomp_lithe_sched {
   lithe_sched_t sched;
   lithe_context_t *main_context;
-  bool join_completed;
+  bool join_ready;
   int num_contexts;
   lithe_mutex_t mutex;
   lithe_condvar_t condvar;

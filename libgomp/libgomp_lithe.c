@@ -45,6 +45,17 @@ static void start_routine_wrapper(void *__arg)
   self->start_routine(self->arg);
   destroy_dtls();
 }
+
+static int maybe_request_harts(int k)
+{
+  int ret = 0;
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+  if(sched->main_context == NULL ||
+     ((num_harts() < max_harts()) &&
+      (sched->num_contexts >= num_harts())))
+    ret = lithe_hart_request(k);
+  return ret;
+}
   
 static libgomp_lithe_context_t *maybe_recycle_context(size_t stack_size)
 {
@@ -123,15 +134,14 @@ static void schedule_context(lithe_context_t *context)
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->context_queue, context, link);
+    maybe_request_harts(1);
   mcs_lock_unlock(&sched->qlock, &qnode);
-  lithe_hart_request(1);
 }
 
 void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched)
 {
   sched->sched.funcs = &libgomp_lithe_sched_funcs;
-  sched->main_context = NULL;
-  sched->join_completed = false;
+  sched->main_context = lithe_context_self();
   sched->num_contexts = 0;
   lithe_mutex_init(&sched->mutex, NULL);
   lithe_condvar_init(&sched->condvar);
@@ -190,7 +200,7 @@ void libgomp_lithe_context_signal_completed()
 
 static void block_main_context(lithe_context_t *context, void *arg) {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)arg;
-  sched->main_context = context;
+  sched->join_ready = true;
 }
 
 void libgomp_lithe_sched_join_completed()
@@ -198,7 +208,6 @@ void libgomp_lithe_sched_join_completed()
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
   if(sched->num_contexts > 0)
     lithe_context_block(block_main_context, sched);
-  sched->join_completed = true;
 }
 
 static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
@@ -216,15 +225,17 @@ static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
       }
       s = TAILQ_NEXT(s, link);
     }
+    int ret = maybe_request_harts(k);
   mcs_lock_unlock(&sched->qlock, &qnode);
-  return lithe_hart_request(k);
+  return ret;
 }
 
 static void child_enter(lithe_sched_t *__this, lithe_sched_t *child)
 {
   /* Add this child to our queue of child schedulers */
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t *)__this;
-  libgomp_lithe_child_sched_t *child_wrapper = (libgomp_lithe_child_sched_t*)malloc(sizeof(libgomp_lithe_child_sched_t));
+  libgomp_lithe_child_sched_t *child_wrapper = 
+    (libgomp_lithe_child_sched_t*)malloc(sizeof(libgomp_lithe_child_sched_t));
   child_wrapper->sched = child;
   child_wrapper->requested_harts = 0;
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
@@ -308,12 +319,10 @@ static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
 
   libgomp_lithe_context_t *context = (libgomp_lithe_context_t*)__context;
   if(context->completed) {
-    if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0) {
-      while(sched->main_context == NULL && !sched->join_completed)
-        cpu_relax();
-      if(sched->main_context)
-        lithe_context_unblock(sched->main_context);
-    }
+    while(sched->join_ready == false)
+      cpu_relax();
+    if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0)
+      lithe_context_unblock(sched->main_context);
   }
 }
   
