@@ -22,7 +22,8 @@ AC_PREFIX_DEFAULT([/usr])
 AM_PROG_LD
 
 AC_ARG_ENABLE([lithe], 
-  AS_HELP_STRING([--enable-lithe], [Build with Lithe support]))
+  AS_HELP_STRING([--disable-lithe], [Build without Lithe support]),
+  [], [enable_lithe=yes])
 
 AS_IF([test "x$enable_lithe" = "xyes"], [
   AC_DEFINE([USE_LITHE], [1],
