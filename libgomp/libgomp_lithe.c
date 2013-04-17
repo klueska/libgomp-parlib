@@ -141,7 +141,7 @@ void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched)
 {
   sched->sched.funcs = &libgomp_lithe_sched_funcs;
   sched->main_context = lithe_context_self();
-  sched->main_complete = false;
+  sched->main_completed = false;
   sched->num_contexts = 1;
   lithe_mutex_init(&sched->mutex, NULL);
   lithe_condvar_init(&sched->condvar);
@@ -200,7 +200,7 @@ void libgomp_lithe_context_signal_completed()
 
 static void block_main_context(lithe_context_t *context, void *arg) {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)arg;
-  sched->main_complete = true;
+  sched->main_completed = true;
 }
 
 void libgomp_lithe_sched_join_completed()
@@ -316,11 +316,15 @@ static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
   libgomp_lithe_context_t *context = (libgomp_lithe_context_t*)__context;
 
   // Hack because the main context isn't a libgomp_lithe context!
-  if(__context == sched->main_context && sched->main_complete) {
-    if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0)
-      lithe_context_unblock(sched->main_context);
+  if(__context == sched->main_context) {
+    if(sched->main_completed) {
+      if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0)
+        lithe_context_unblock(sched->main_context);
+    }
+    return;
   }
 
+  // Real way of doing it
   if(context->completed) {
     if(__sync_add_and_fetch(&sched->num_contexts, -1) == 0)
       lithe_context_unblock(sched->main_context);
