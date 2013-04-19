@@ -7,8 +7,7 @@
 
 #include <sys/queue.h>
 #include <parlib/mcs.h>
-#include <lithe/mutex.h>
-#include <lithe/condvar.h>
+#include <lithe/lithe.h>
 #include <string.h>
 #include <stdbool.h>
 
@@ -31,8 +30,6 @@ typedef struct libgomp_lithe_child_sched_queue libgomp_lithe_child_sched_queue_t
 struct libgomp_lithe_sched {
   lithe_sched_t sched;
   int num_contexts;
-  lithe_mutex_t mutex;
-  lithe_condvar_t condvar;
   mcs_lock_t qlock;
   lithe_context_queue_t context_queue;
   libgomp_lithe_child_sched_queue_t child_sched_queue;

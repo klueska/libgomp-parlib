@@ -143,8 +143,6 @@ void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched)
   sched->sched.main_context = malloc(sizeof(libgomp_lithe_context_t));
   ((libgomp_lithe_context_t*)(sched->sched.main_context))->completed = false;
   sched->num_contexts = 1;
-  lithe_mutex_init(&sched->mutex, NULL);
-  lithe_condvar_init(&sched->condvar);
   mcs_lock_init(&sched->qlock);
   TAILQ_INIT(&sched->context_queue);
   TAILQ_INIT(&sched->child_sched_queue);
