@@ -197,6 +197,12 @@ void libgomp_lithe_context_signal_completed()
   self->completed = true;
 }
 
+void libgomp_lithe_context_signal_completed_immediate()
+{
+  libgomp_lithe_context_signal_completed();
+  context_block(lithe_sched_current(), lithe_context_self());
+}
+
 static void block_main_context(lithe_context_t *context, void *arg) {
   libgomp_lithe_context_t *self = (libgomp_lithe_context_t*)context;
   self->completed = true;

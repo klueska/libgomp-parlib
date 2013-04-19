@@ -134,10 +134,10 @@ gomp_thread_start (void *xdata)
       local_fn (local_data);
       gomp_team_barrier_wait (&team->barrier);
       gomp_finish_task (task);
-#ifdef USE_LITHE
-	  libgomp_lithe_context_signal_completed();
-#endif
       gomp_barrier_wait_last (&team->barrier);
+#ifdef USE_LITHE
+	  libgomp_lithe_context_signal_completed_immediate();
+#endif
     }
   else
     {
