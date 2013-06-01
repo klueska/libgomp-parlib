@@ -14,7 +14,7 @@ mcs_lock_t zombie_context_queue_lock;
 static lithe_context_queue_t zombie_context_queue = 
   TAILQ_HEAD_INITIALIZER(zombie_context_queue);
 
-static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k);
+static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k);
 static void child_enter(lithe_sched_t *__this, lithe_sched_t *child);
 static void child_exit(lithe_sched_t *__this, lithe_sched_t *child);
 static void hart_return(lithe_sched_t *__this, lithe_sched_t *child);
@@ -213,7 +213,7 @@ void libgomp_lithe_sched_join_completed()
   lithe_context_block(block_main_context, NULL);
 }
 
-static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, int k)
+static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
 {
   /* Find the child scheduler associated in our queue, and update the number
    * of harts it has requested */
