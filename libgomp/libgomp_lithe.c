@@ -46,16 +46,6 @@ static void start_routine_wrapper(void *__arg)
   destroy_dtls();
 }
 
-static int maybe_request_harts(int k)
-{
-  int ret = 0;
-  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
-  if(((num_harts() < max_harts()) &&
-      (sched->num_contexts >= num_harts())))
-    ret = lithe_hart_request(k);
-  return ret;
-}
-  
 static libgomp_lithe_context_t *maybe_recycle_context(size_t stack_size)
 {
   lithe_context_t *c = NULL;
@@ -133,7 +123,7 @@ static void schedule_context(lithe_context_t *context)
   mcs_lock_qnode_t qnode = MCS_QNODE_INIT;
   mcs_lock_lock(&sched->qlock, &qnode);
     TAILQ_INSERT_TAIL(&sched->context_queue, context, link);
-    maybe_request_harts(1);
+    lithe_hart_request(1);
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
@@ -228,7 +218,7 @@ static int hart_request(lithe_sched_t *__this, lithe_sched_t *child, size_t k)
       }
       s = TAILQ_NEXT(s, link);
     }
-    int ret = maybe_request_harts(k);
+    int ret = lithe_hart_request(k);
   mcs_lock_unlock(&sched->qlock, &qnode);
   return ret;
 }
