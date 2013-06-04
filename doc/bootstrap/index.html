@@ -130,8 +130,6 @@ git checkout release_1_0_0</pre>
       </p>
 	  <p>
 		Once downloaded, follow the standard GNU installation procedure to compile and install it.<br/>
-		You <strong>must</strong> pass the <code>--enable-lithe</code> flag to
-        <code>configure</code> in order to enable lithe support.
       </p>
 	  <p>
         <span style="color:red">Note:</span>
@@ -153,7 +151,7 @@ cd libgomp-lithe/libgomp
 ./bootstrap
 mkdir build
 cd build
-../configure --enable-lithe --prefix=&lt;install_dir&gt; --with-parlib=&lt;parlib_install_dir&gt; --with-lithe=&lt;lithe_install_dir&gt;
+../configure --prefix=&lt;install_dir&gt; --with-parlib=&lt;parlib_install_dir&gt; --with-lithe=&lt;lithe_install_dir&gt;
 make
 &lt;sudo&gt; make install</pre>
       </p>
