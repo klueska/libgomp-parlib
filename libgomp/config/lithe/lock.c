@@ -151,7 +151,7 @@ static inline int gomp_tid (void)
 void
 gomp_init_nest_lock_25 (omp_nest_lock_25_t *lock)
 {
-  memset (lock, 0, sizeof (lock));
+  memset (lock, 0, sizeof (*lock));
 }
 
 void
