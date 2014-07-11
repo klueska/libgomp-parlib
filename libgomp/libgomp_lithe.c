@@ -3,7 +3,6 @@
  */
 
 #include "libgomp_lithe.h"
-#include "internal/assert.h"
 #include <parlib/dtls.h>
 #include <lithe/lithe.h>
 #include <lithe/defaults.h>

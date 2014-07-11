@@ -5,6 +5,7 @@
 #ifndef LIBGOMP_LITHE_H
 #define LIBGOMP_LITHE_H
 
+#include "internal/assert.h"
 #include <sys/queue.h>
 #include <parlib/mcs.h>
 #include <lithe/lithe.h>
