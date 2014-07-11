@@ -126,22 +126,6 @@ static void schedule_context(lithe_context_t *context)
   mcs_lock_unlock(&sched->qlock, &qnode);
 }
 
-void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched)
-{
-  sched->sched.funcs = &libgomp_lithe_sched_funcs;
-  sched->sched.main_context = malloc(sizeof(libgomp_lithe_context_t));
-  ((libgomp_lithe_context_t*)(sched->sched.main_context))->completed = false;
-  sched->num_contexts = 1;
-  mcs_lock_init(&sched->qlock);
-  TAILQ_INIT(&sched->context_queue);
-  TAILQ_INIT(&sched->child_sched_queue);
-}
-
-void libgomp_lithe_sched_dtor(libgomp_lithe_sched_t* sched)
-{
-  free(sched->sched.main_context);
-}
-
 void libgomp_lithe_setstacksize(size_t stack_size)
 {
   __context_stack_size = stack_size;
@@ -161,6 +145,7 @@ void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   *__context = context;
 
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)lithe_sched_current();
+  libgomp_lithe_sched_incref(sched, 1);
   __sync_fetch_and_add(&sched->num_contexts, 1);
 
   schedule_context(&context->context);
@@ -176,7 +161,10 @@ void libgomp_lithe_context_exit()
 void libgomp_lithe_context_rebind_sched(libgomp_lithe_context_t *c,
                                         libgomp_lithe_sched_t *s)
 {
+  libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)c->context.sched);
+  libgomp_lithe_sched_incref(s, 1);
   lithe_context_reassociate(&c->context, &s->sched);
+  c->completed = false;
   __sync_fetch_and_add(&s->num_contexts, 1);
 }
 
@@ -328,5 +316,34 @@ static void context_yield(lithe_sched_t *__this, lithe_context_t *context)
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 {
   destroy_context((libgomp_lithe_context_t*)context);
+  libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)__this);
 }
 
+libgomp_lithe_sched_t *libgomp_lithe_sched_alloc()
+{
+  libgomp_lithe_sched_t *sched = malloc(sizeof(libgomp_lithe_sched_t));
+  sched->refcnt = 1;
+  sched->sched.funcs = &libgomp_lithe_sched_funcs;
+  sched->sched.main_context = malloc(sizeof(libgomp_lithe_context_t));
+  ((libgomp_lithe_context_t*)(sched->sched.main_context))->completed = false;
+  sched->num_contexts = 1;
+  mcs_lock_init(&sched->qlock);
+  TAILQ_INIT(&sched->context_queue);
+  TAILQ_INIT(&sched->child_sched_queue);
+  return sched;
+}
+
+void libgomp_lithe_sched_incref(libgomp_lithe_sched_t *sched, int k)
+{
+  int old = __sync_fetch_and_add(&sched->refcnt, k);
+  assert(old);
+}
+
+void libgomp_lithe_sched_decref(libgomp_lithe_sched_t *sched)
+{
+  int new = __sync_add_and_fetch(&sched->refcnt, -1);
+  if (new == 0) {
+    free(sched->sched.main_context);
+    free(sched);
+  }
+}

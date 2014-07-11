@@ -30,6 +30,7 @@ typedef struct libgomp_lithe_child_sched_queue libgomp_lithe_child_sched_queue_t
 
 struct libgomp_lithe_sched {
   lithe_sched_t sched;
+  int refcnt;
   int num_contexts;
   mcs_lock_t qlock;
   lithe_context_queue_t context_queue;
@@ -38,8 +39,9 @@ struct libgomp_lithe_sched {
 typedef struct libgomp_lithe_sched libgomp_lithe_sched_t;
 
 void libgomp_lithe_setstacksize(size_t stack_size);
-void libgomp_lithe_sched_ctor(libgomp_lithe_sched_t* sched);
-void libgomp_lithe_sched_dtor(libgomp_lithe_sched_t* sched);
+libgomp_lithe_sched_t *libgomp_lithe_sched_alloc();
+void libgomp_lithe_sched_incref(libgomp_lithe_sched_t* sched, int k);
+void libgomp_lithe_sched_decref(libgomp_lithe_sched_t* sched);
 void libgomp_lithe_context_create(libgomp_lithe_context_t **__context,
   void (*start_routine)(void*), void *arg);
 void libgomp_lithe_context_exit();
