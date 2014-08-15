@@ -266,12 +266,20 @@ gomp_free_thread (void *arg __attribute__((unused)))
     {
       if (pool->threads_used > 0)
 	{
+#ifdef USE_LITHE
+	  libgomp_lithe_sched_t *lithe_sched = libgomp_lithe_sched_alloc();
+	  lithe_sched_enter((lithe_sched_t*)lithe_sched);
+#endif
 	  int i;
 	  for (i = 1; i < pool->threads_used; i++)
 	    {
 	      struct gomp_thread *nthr = pool->threads[i];
 	      nthr->fn = gomp_free_pool_helper;
 	      nthr->data = pool;
+#ifdef USE_LITHE
+	      libgomp_lithe_context_rebind_sched(pool->threads[i]->context,
+	                                         lithe_sched);
+#endif
 	    }
 	  /* This barrier undocks threads docked on pool->threads_dock.  */
 	  gomp_barrier_wait (&pool->threads_dock);
@@ -280,6 +288,10 @@ gomp_free_thread (void *arg __attribute__((unused)))
 	  gomp_barrier_wait (&pool->threads_dock);
 	  /* Now it is safe to destroy the barrier and free the pool.  */
 	  gomp_barrier_destroy (&pool->threads_dock);
+#ifdef USE_LITHE
+	  lithe_sched_exit();
+	  libgomp_lithe_sched_decref(lithe_sched);
+#endif
 	}
       free (pool->threads);
       if (pool->last_team)
