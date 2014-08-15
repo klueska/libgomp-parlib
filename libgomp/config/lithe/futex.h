@@ -35,19 +35,7 @@
 #include "internal/assert.h"
 #pragma GCC visibility pop
 
-static inline void
-futex_wait (int *addr, int val)
-{
-  int ret = futex(addr, FUTEX_WAIT, val, NULL, NULL, 0);
-  assert(!ret);
-}
-
-static inline void
-futex_wake (int *addr, int count)
-{
-  int ret = futex(addr, FUTEX_WAKE, count, NULL, NULL, 0);
-  assert(!ret);
-}
+/* futex_wait() and futex_wake() are already exposed in lithe/futex.h */
 
 static inline void
 atomic_write_barrier (void)
