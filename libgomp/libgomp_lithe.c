@@ -247,10 +247,8 @@ static void child_exit(lithe_sched_t *__this, lithe_sched_t *child)
 
 static void hart_return(lithe_sched_t *__this, lithe_sched_t *child)
 {
-  /* Just call hart_enter() as that is where all of our logic for figuring
-   * out what to do with a newly granted hart is. */
+  /* Do nothing, just let us fall through to hart enter after it returns */
   assert(child);
-  hart_enter(__this);
 }
 
 static void hart_enter(lithe_sched_t *__this)
