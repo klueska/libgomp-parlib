@@ -136,7 +136,7 @@ gomp_thread_start (void *xdata)
       gomp_finish_task (task);
       gomp_barrier_wait_last (&team->barrier);
 #ifdef USE_LITHE
-	  libgomp_lithe_context_signal_completed_immediate();
+      libgomp_lithe_context_signal_completed_immediate();
 #endif
     }
   else
