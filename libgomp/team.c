@@ -249,7 +249,7 @@ gomp_free_pool_helper (void *thread_pool)
   gomp_barrier_wait_last (&pool->threads_dock);
   gomp_sem_destroy (&gomp_thread ()->release);
 #ifdef USE_LITHE
-  libgomp_lithe_context_exit();
+  lithe_context_exit();
 #else
   pthread_exit (NULL);
 #endif
@@ -359,8 +359,8 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   gomp_init_task (thr->task, task, icv);
 
 #ifdef USE_LITHE
-  libgomp_lithe_sched_t *lithe_sched = libgomp_lithe_sched_alloc();
-  lithe_sched_enter((lithe_sched_t*)lithe_sched);
+  libgomp_lithe_sched_t *sched = libgomp_lithe_sched_alloc();
+  lithe_sched_enter((lithe_sched_t*)sched);
 #endif
 
   if (nthreads == 1)
@@ -422,8 +422,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
 #ifdef USE_LITHE
       int j;
       for (j = 1; j < old_threads_used; j++)
-        libgomp_lithe_context_rebind_sched(pool->threads[j]->context,
-          (libgomp_lithe_sched_t*)lithe_sched_current());
+        libgomp_lithe_context_rebind_sched(pool->threads[j]->context, sched);
 #endif
 
       if (i == nthreads)
@@ -477,9 +476,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
   /* Launch new threads.  */
   for (; i < nthreads; ++i, ++start_data)
     {
-#ifdef USE_LITHE
-      libgomp_lithe_context_t *pt;
-#else
+#ifndef USE_LITHE
       pthread_t pt;
       int err;
 #endif
@@ -502,7 +499,7 @@ gomp_team_start (void (*fn) (void *), void *data, unsigned nthreads,
       start_data->nested = nested;
 
 #ifdef USE_LITHE
-      libgomp_lithe_context_create (&pt, gomp_thread_start, start_data);
+      libgomp_lithe_context_create(sched, gomp_thread_start, start_data);
 #else
       if (gomp_cpu_affinity != NULL)
 	gomp_init_thread_affinity (attr);
