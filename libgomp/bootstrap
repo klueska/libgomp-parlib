@@ -1,2 +1,2 @@
-autoreconf2.64 --install
+autoreconf --install
 git checkout build-aux/config.sub

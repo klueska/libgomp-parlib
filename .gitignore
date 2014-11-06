@@ -1,0 +1,5 @@
+libgomp/Makefile.in
+libgomp/config.h.in
+libgomp/aclocal.m4
+libgomp/configure
+libgomp/testsuite/Makefile.in
