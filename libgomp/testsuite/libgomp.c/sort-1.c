@@ -96,9 +96,18 @@ size_int_pair_stack (struct int_pair_stack *stack)
   return stack->top - &stack->arr[0];
 }
 
+#include <dlfcn.h>
+static void (*lithe_context_yield)(void);
+static void __attribute__((constructor)) foo()
+{
+  lithe_context_yield = dlsym(NULL, "lithe_context_yield");
+}
+
 static inline void
 busy_wait (void)
 {
+  if (lithe_context_yield)
+    lithe_context_yield();
 #if defined __i386__ || defined __x86_64__
   __asm volatile ("rep; nop" : : : "memory");
 #elif defined __ia64__

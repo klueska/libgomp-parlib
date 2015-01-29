@@ -307,6 +307,7 @@ fi
 if test $enable_lithe = yes; then
   link_gomp="-lithe -lparlib $link_gomp"
 fi
+link_gomp="$link_gomp -ldl"
 AC_SUBST(link_gomp)
 
 AM_CONDITIONAL([USE_FORTRAN], [test "$ac_cv_fc_compiler_gnu" = yes])
