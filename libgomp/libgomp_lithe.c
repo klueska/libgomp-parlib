@@ -9,6 +9,7 @@
 #include <lithe/defaults.h>
 
 static size_t __context_stack_size = 1<<20;
+struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
 
 static void context_block(lithe_sched_t *__this, lithe_context_t *context);
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context);
@@ -115,16 +116,26 @@ static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 
 libgomp_lithe_sched_t *libgomp_lithe_sched_alloc()
 {
-  struct {
+  /* Allocate all the scheduler data together. */
+  struct sched_data {
     libgomp_lithe_sched_t sched;
     libgomp_lithe_context_t main_context;
     struct lithe_fork_join_vc_mgmt vc_mgmt[];
-  } *s = parlib_aligned_alloc(PGSIZE,
-            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
+  };
 
-  s->sched.sched.vc_mgmt = &s->vc_mgmt[0];
+  /* Use a zombie list to reuse old schedulers if available, otherwise, create
+   * a new one. */
+  struct sched_data *s = wfl_remove(&sched_zombie_list);
+  if (!s) {
+    s = parlib_aligned_alloc(PGSIZE,
+            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
+    s->sched.sched.vc_mgmt = &s->vc_mgmt[0];
+    s->sched.sched.sched.funcs = &libgomp_lithe_sched_funcs;
+  }
+
+  /* Initialize some libgomp specific fields before initializing the generic
+   * underlying fjs. */
   s->sched.refcnt = 1;
-  s->sched.sched.sched.funcs = &libgomp_lithe_sched_funcs;
   s->main_context.completed = false;
   lithe_fork_join_sched_init(&s->sched.sched, &s->main_context.context);
   return &s->sched;
@@ -140,7 +151,10 @@ void libgomp_lithe_sched_decref(libgomp_lithe_sched_t *sched)
 {
   if (__sync_add_and_fetch(&sched->refcnt, -1) == 0) {
     lithe_fork_join_sched_cleanup(&sched->sched);
-    free(sched);
+    if (wfl_size(&sched_zombie_list) < 100)
+      wfl_insert(&sched_zombie_list, sched);
+    else
+      free(sched);
   }
 }
 
