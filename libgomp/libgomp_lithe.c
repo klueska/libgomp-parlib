@@ -2,6 +2,7 @@
  * Kevin Klues <klueska@cs.berkeley.edu>
  */
 
+#include <sys/mman.h>
 #include "libgomp_lithe.h"
 #include <parlib/dtls.h>
 #include <lithe/lithe.h>
@@ -29,25 +30,39 @@ void libgomp_lithe_setstacksize(size_t stack_size)
   __context_stack_size = stack_size;
 }
 
+static libgomp_lithe_context_t *__ctx_alloc(size_t stacksize)
+{
+    int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
+    stacksize += sizeof(libgomp_lithe_context_t) + offset;
+    stacksize = ROUNDUP(stacksize, PGSIZE);
+    void *stackbot = mmap(
+        0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
+        MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
+    );
+    if (stackbot == MAP_FAILED)
+        abort();
+    libgomp_lithe_context_t *ctx = stackbot + stacksize
+             - sizeof(libgomp_lithe_context_t) - offset;
+    ctx->context.context.stack.bottom = stackbot;
+    ctx->context.context.stack.size = stacksize - sizeof(*ctx) - offset;
+    return ctx;
+}
+
+static void __ctx_free(libgomp_lithe_context_t *pt)
+{
+    assert(!munmap(pt->context.context.stack.bottom,
+                   pt->context.context.stack.size));
+}
+
 libgomp_lithe_context_t*
   libgomp_lithe_context_create(libgomp_lithe_sched_t *sched,
                                void (*start_routine)(void*),
                                void *arg)
 {
-  /* Create a new lithe context and initialize it from scratch */
-  size_t stack_size = __context_stack_size;
-  void *storage = malloc(sizeof(libgomp_lithe_context_t) + stack_size);
-  if (storage == NULL)
-    abort();
-
-  libgomp_lithe_context_t *c = storage;
-  c->context.context.stack.bottom = storage + sizeof(libgomp_lithe_context_t);
-  c->context.context.stack.size = stack_size;
+  libgomp_lithe_context_t *c = __ctx_alloc(__context_stack_size);
   c->completed = false;
   libgomp_lithe_sched_incref(sched);
-
   lithe_fork_join_context_init(&sched->sched, &c->context, start_routine, arg);
-
   return c;
 }
 
@@ -94,7 +109,7 @@ static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 {
   lithe_fork_join_context_cleanup((lithe_fork_join_context_t*)context);
-  free(context);
+  __ctx_free((libgomp_lithe_context_t*)context);
   libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)__this);
 }
 
@@ -103,16 +118,15 @@ libgomp_lithe_sched_t *libgomp_lithe_sched_alloc()
   struct {
     libgomp_lithe_sched_t sched;
     libgomp_lithe_context_t main_context;
-  } *s = malloc(sizeof(*s));
-  if (s == NULL)
-    abort();
+    struct lithe_fork_join_vc_mgmt vc_mgmt[];
+  } *s = parlib_aligned_alloc(PGSIZE,
+            sizeof(*s) + sizeof(struct lithe_fork_join_vc_mgmt) * max_vcores());
 
+  s->sched.sched.vc_mgmt = &s->vc_mgmt[0];
   s->sched.refcnt = 1;
   s->sched.sched.sched.funcs = &libgomp_lithe_sched_funcs;
   s->main_context.completed = false;
-  memset(&s->main_context.context, 0, sizeof(libgomp_lithe_context_t));
   lithe_fork_join_sched_init(&s->sched.sched, &s->main_context.context);
-
   return &s->sched;
 }
 
