@@ -10,6 +10,7 @@
 
 static size_t __context_stack_size = 1<<20;
 struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
+struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
 
 static void context_block(lithe_sched_t *__this, lithe_context_t *context);
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context);
@@ -33,26 +34,32 @@ void libgomp_lithe_setstacksize(size_t stack_size)
 
 static libgomp_lithe_context_t *__ctx_alloc(size_t stacksize)
 {
-    int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
-    stacksize += sizeof(libgomp_lithe_context_t) + offset;
-    stacksize = ROUNDUP(stacksize, PGSIZE);
-    void *stackbot = mmap(
-        0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
-        MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
-    );
-    if (stackbot == MAP_FAILED)
-        abort();
-    libgomp_lithe_context_t *ctx = stackbot + stacksize
-             - sizeof(libgomp_lithe_context_t) - offset;
-    ctx->context.context.stack.bottom = stackbot;
-    ctx->context.context.stack.size = stacksize - sizeof(*ctx) - offset;
+	libgomp_lithe_context_t *ctx = wfl_remove(&context_zombie_list);
+	if (!ctx) {
+		int offset = rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
+		stacksize += sizeof(libgomp_lithe_context_t) + offset;
+		stacksize = ROUNDUP(stacksize, PGSIZE);
+		void *stackbot = mmap(
+			0, stacksize, PROT_READ|PROT_WRITE|PROT_EXEC,
+			MAP_PRIVATE|MAP_ANONYMOUS, -1, 0
+		);
+		if (stackbot == MAP_FAILED)
+			abort();
+		ctx = stackbot + stacksize - sizeof(libgomp_lithe_context_t) - offset;
+		ctx->context.context.stack.bottom = stackbot;
+		ctx->context.context.stack.size = stacksize - sizeof(*ctx) - offset;
+	}
     return ctx;
 }
 
-static void __ctx_free(libgomp_lithe_context_t *pt)
+static void __ctx_free(libgomp_lithe_context_t *ctx)
 {
-    assert(!munmap(pt->context.context.stack.bottom,
-                   pt->context.context.stack.size));
+	if (wfl_size(&context_zombie_list) < 1000) {
+		wfl_insert(&context_zombie_list, ctx);
+	} else {
+		assert(!munmap(ctx->context.context.stack.bottom,
+					   ctx->context.context.stack.size));
+	}
 }
 
 libgomp_lithe_context_t*
