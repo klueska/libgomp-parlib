@@ -82,6 +82,8 @@ void libgomp_lithe_context_rebind_sched(libgomp_lithe_context_t *c,
   libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)c->context.context.sched);
   libgomp_lithe_sched_incref(s);
   lithe_context_reassociate(&c->context.context, &s->sched.sched);
+  ctx->state = FJS_CTX_CREATED;
+  c->context.preferred_vcq = -1;
   c->completed = false;
   __sync_fetch_and_add(&s->sched.num_contexts, 1);
 }
