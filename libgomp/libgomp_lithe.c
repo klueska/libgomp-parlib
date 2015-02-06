@@ -79,10 +79,11 @@ libgomp_lithe_context_t*
 void libgomp_lithe_context_rebind_sched(libgomp_lithe_context_t *c,
                                         libgomp_lithe_sched_t *s)
 {
-  libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)c->context.context.sched);
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)c->context.context.sched;
+  libgomp_lithe_sched_decref(sched);
   libgomp_lithe_sched_incref(s);
   lithe_context_reassociate(&c->context.context, &s->sched.sched);
-  ctx->state = FJS_CTX_CREATED;
+  c->context.state = FJS_CTX_BLOCKED;
   c->context.preferred_vcq = -1;
   c->completed = false;
   __sync_fetch_and_add(&s->sched.num_contexts, 1);
@@ -113,13 +114,15 @@ static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
 {
   libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)__this;
   libgomp_lithe_context_t *context = (libgomp_lithe_context_t*)__context;
-
+  lithe_fork_join_sched_context_block(__this, __context);
   if(context->completed)
     lithe_fork_join_sched_join_one(&sched->sched);
 }
 
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 {
+  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)__this;
+  lithe_fork_join_hart_request_inc(&sched->sched, -1);
   lithe_fork_join_context_cleanup((lithe_fork_join_context_t*)context);
   __ctx_free((libgomp_lithe_context_t*)context);
   libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)__this);
