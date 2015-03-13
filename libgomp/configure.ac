@@ -377,7 +377,7 @@ AC_CONFIG_FILES(Makefile testsuite/Makefile libgomp.spec)
 # Add parlib -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
 # if they are not install on the system already
 AC_ARG_WITH([parlib],
-  [AS_HELP_STRING([--with-parlib],
+  [AS_HELP_STRING([--with-parlib=DIR],
     [path to your parlib installation if not in a standard location])],
   [PARLIBPATH="$withval"],
   [with_parlib=no])
@@ -389,7 +389,7 @@ LDFLAGS="$LDFLAGS -L$PARLIBPATH/lib"
 # Add lithe -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
 # if they are not install on the system already
 AC_ARG_WITH([lithe],
-  [AS_HELP_STRING([--with-lithe],
+  [AS_HELP_STRING([--with-lithe=DIR],
     [path to your lithe installation if not in a standard location])],
   [LITHEPATH="$withval"],
   [with_lithe=no])
