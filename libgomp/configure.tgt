@@ -97,8 +97,7 @@ if test $enable_linux_futex = yes; then
 	;;
   esac
 
-  if test "$enable_lithe" = yes; then
-    # lithe added in later (at bottom of script), but requires parlib to work
+  if test "$parlib_sched" != no; then
 	config_path="parlib $config_path"
   fi
 fi
@@ -147,7 +146,7 @@ case "${target}" in
 
 esac
 
-if test "$enable_lithe" = yes; then
+if test "$parlib_sched" = lithe; then
   config_path="lithe $config_path"
 fi
 

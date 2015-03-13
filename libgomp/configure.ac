@@ -21,15 +21,19 @@ AC_PREFIX_DEFAULT([/usr])
 # Bring in the Loader
 AM_PROG_LD
 
-AC_ARG_ENABLE([lithe], 
-  AS_HELP_STRING([--disable-lithe], [Build without Lithe support]),
-  [], [enable_lithe=yes])
+AC_ARG_ENABLE([parlib-sched], 
+  AS_HELP_STRING([--disable-parlib-sched],
+    [Build without parlib support.
+     Support is enabled by default.
+     Possible values when enabling are --enable-parlib-sched=<lithe>.
+     The default value is lithe.]),
+  [parlib_sched="$enableval"], [parlib_sched=lithe])
 
-AS_IF([test "x$enable_lithe" = "xyes"], [
+AS_IF([test "x$parlib_sched" = "xlithe"], [
   AC_DEFINE([USE_LITHE], [1],
             [Indicates that Lithe support is to be built])
 ])
-AM_CONDITIONAL([USE_LITHE], [test "$enable_lithe" = yes])
+AM_CONDITIONAL([USE_LITHE], [test "$parlib_sched" = lithe])
 
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
@@ -196,24 +200,26 @@ AC_CHECK_HEADERS(unistd.h semaphore.h sys/loadavg.h sys/time.h sys/time.h)
 
 GCC_HEADER_STDINT(gstdint.h)
 
-# Check to see if -pthread or -lpthread is needed.  Prefer the former.
-# In case the pthread.h system header is not found, this test will fail.
-XPCFLAGS=""
-CFLAGS="$CFLAGS -pthread"
-AC_LINK_IFELSE(
- [AC_LANG_PROGRAM(
-  [#include <pthread.h>
-   void *g(void *d) { return NULL; }],
-  [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
- [XPCFLAGS=" -Wc,-pthread"],
- [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
-  AC_LINK_IFELSE(
-   [AC_LANG_PROGRAM(
-    [#include <pthread.h>
-     void *g(void *d) { return NULL; }],
-    [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
-   [],
-   [AC_MSG_ERROR([Pthreads are required to build libgomp])])])
+if [[ $parlib_sched = no ]]; then
+	# Check to see if -pthread or -lpthread is needed.  Prefer the former.
+	# In case the pthread.h system header is not found, this test will fail.
+	XPCFLAGS=""
+	CFLAGS="$CFLAGS -pthread"
+	AC_LINK_IFELSE(
+	 [AC_LANG_PROGRAM(
+	  [#include <pthread.h>
+	   void *g(void *d) { return NULL; }],
+	  [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
+	 [XPCFLAGS=" -Wc,-pthread"],
+	 [CFLAGS="$save_CFLAGS" LIBS="-lpthread $LIBS"
+	  AC_LINK_IFELSE(
+	   [AC_LANG_PROGRAM(
+	    [#include <pthread.h>
+	     void *g(void *d) { return NULL; }],
+	    [pthread_t t; pthread_create(&t,NULL,g,NULL);])],
+	   [],
+	   [AC_MSG_ERROR([Pthreads are required to build libgomp])])])
+fi
 
 # Check for functions needed.
 AC_CHECK_FUNCS(getloadavg clock_gettime strtoull)
@@ -304,8 +310,11 @@ if test $enable_shared = yes; then
 else
   link_gomp="-lgomp $LIBS"
 fi
-if test $enable_lithe = yes; then
-  link_gomp="-lithe -lparlib $link_gomp"
+if test $parlib_sched != no; then
+  link_gomp="-lparlib $link_gomp"
+  if test $parlib_sched = lithe; then
+    link_gomp="-lithe $link_gomp"
+  fi
 fi
 link_gomp="$link_gomp -ldl"
 AC_SUBST(link_gomp)
@@ -402,32 +411,36 @@ LDFLAGS="$LDFLAGS -L$LITHEPATH/lib"
 # Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
 #AC_CHECK_LIB(LIBRARY, FUNCT, [ACT-IF-FOUND], [ACT-IF-NOT])
 
-# Check for parlib
-save_LDFLAGS="$LDFLAGS" 
-save_LIBS="$LIBS"
-LDFLAGS="$LDFLAGS -static -lpthread" 
-LIBS="$LIBS -lpthread" 
-AC_CHECK_LIB(parlib, uthread_init, [], [
-    echo "Error! You need to have parlib installed on your system in order to build libgomp-lithe!"
-    echo "Try setting --with-parlib=<parlib_install_dir>"
-    echo "See 'configure --help' for details."
-    exit -1
-])
-LDFLAGS="$save_LDFLAGS"
-LIBS="$save_LIBS"
+if [[ $parlib_sched != no ]]; then
+	# Check for parlib
+	save_LDFLAGS="$LDFLAGS" 
+	save_LIBS="$LIBS"
+	LDFLAGS="$LDFLAGS -static -lpthread" 
+	LIBS="$LIBS -lpthread" 
+	AC_CHECK_LIB(parlib, uthread_init, [], [
+	    echo "Error! You need to have parlib installed on your system in order to build libgomp-lithe!"
+	    echo "Try setting --with-parlib=<parlib_install_dir>"
+	    echo "See 'configure --help' for details."
+	    exit -1
+	])
+	LDFLAGS="$save_LDFLAGS"
+	LIBS="$save_LIBS"
+fi
 
 # Check for lithe
-save_LDFLAGS="$LDFLAGS" 
-save_LIBS="$LIBS"
-LDFLAGS="$LDFLAGS -static -lpthread" 
-LIBS="$LIBS -lparlib -lpthread" 
-AC_CHECK_LIB(ithe, lithe_sched_enter, [], [
-    echo "Error! You need to have lithe installed on your system in order to build libgomp-lithe!"
-    echo "Try setting --with-lithe=<lithe_install_dir>"
-    echo "See 'configure --help' for details."
-    exit -1
-])
-LDFLAGS="$save_LDFLAGS"
-LIBS="$save_LIBS"
+if [[ $parlib_sched = lithe ]]; then
+	save_LDFLAGS="$LDFLAGS" 
+	save_LIBS="$LIBS"
+	LDFLAGS="$LDFLAGS -static -lpthread" 
+	LIBS="$LIBS -lparlib -lpthread" 
+	AC_CHECK_LIB(ithe, lithe_sched_enter, [], [
+	    echo "Error! You need to have lithe installed on your system in order to build libgomp-lithe!"
+	    echo "Try setting --with-lithe=<lithe_install_dir>"
+	    echo "See 'configure --help' for details."
+	    exit -1
+	])
+	LDFLAGS="$save_LDFLAGS"
+	LIBS="$save_LIBS"
+fi
 
 AC_OUTPUT
