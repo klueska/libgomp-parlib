@@ -149,4 +149,7 @@ esac
 if test "$parlib_sched" = lithe; then
   config_path="lithe $config_path"
 fi
+if test "$parlib_sched" = upthread; then
+  config_path="upthread $config_path"
+fi
 

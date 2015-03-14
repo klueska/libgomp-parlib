@@ -41,6 +41,8 @@
 #include <parlib/dtls.h>
 #include <lithe/lithe.h>
 #include "libgomp_lithe.h"
+#elif defined(USE_UPTHREAD)
+#include <upthread/compatibility/pthread.h>
 #else
 #include <pthread.h>
 #endif

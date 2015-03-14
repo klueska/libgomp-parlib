@@ -25,6 +25,9 @@ nodist_toolexeclib_HEADERS = libgomp.spec
 if USE_LITHE
 libgomp_la_LIBADD = -lithe -lparlib
 endif
+if USE_UPTHREAD
+libgomp_la_LIBADD = -lupthread -lparlib
+endif
 
 if LIBGOMP_BUILD_VERSIONED_SHLIB
 if LIBGOMP_BUILD_VERSIONED_SHLIB_GNU

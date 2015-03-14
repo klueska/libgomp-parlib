@@ -525,6 +525,12 @@ initialize_env (void)
     gomp_throttled_spin_count_var = gomp_spin_count_var;
 
   /* Not strictly environment related, but ordering constructors is tricky.  */
+#ifdef USE_UPTHREAD
+  upthread_can_vcore_request(false);
+  upthread_can_vcore_steal(false);
+  upthread_set_num_vcores(gomp_global_icv.nthreads_var);
+  vcore_request(gomp_global_icv.nthreads_var - 1);
+#endif
 #ifndef USE_LITHE
   pthread_attr_init (&gomp_thread_attr);
   pthread_attr_setdetachstate (&gomp_thread_attr, PTHREAD_CREATE_DETACHED);

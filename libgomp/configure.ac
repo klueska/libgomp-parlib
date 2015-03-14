@@ -25,7 +25,7 @@ AC_ARG_ENABLE([parlib-sched],
   AS_HELP_STRING([--disable-parlib-sched],
     [Build without parlib support.
      Support is enabled by default.
-     Possible values when enabling are --enable-parlib-sched=<lithe>.
+     Possible values when enabling are --enable-parlib-sched=<lithe, upthread>.
      The default value is lithe.]),
   [parlib_sched="$enableval"], [parlib_sched=lithe])
 
@@ -34,6 +34,12 @@ AS_IF([test "x$parlib_sched" = "xlithe"], [
             [Indicates that Lithe support is to be built])
 ])
 AM_CONDITIONAL([USE_LITHE], [test "$parlib_sched" = lithe])
+
+AS_IF([test "x$parlib_sched" = "xupthread"], [
+  AC_DEFINE([USE_UPTHREAD], [1],
+            [Indicates that Upthread support is to be built])
+])
+AM_CONDITIONAL([USE_UPTHREAD], [test "$parlib_sched" = upthread])
 
 AC_MSG_CHECKING([for --enable-version-specific-runtime-libs])
 LIBGOMP_ENABLE(version-specific-runtime-libs, no, ,
@@ -315,6 +321,9 @@ if test $parlib_sched != no; then
   if test $parlib_sched = lithe; then
     link_gomp="-lithe $link_gomp"
   fi
+  if test $parlib_sched = upthread; then
+    link_gomp="-lupthread $link_gomp"
+  fi
 fi
 link_gomp="$link_gomp -ldl"
 AC_SUBST(link_gomp)
@@ -406,6 +415,18 @@ AC_ARG_WITH([lithe],
 CFLAGS="$CFLAGS -I$LITHEPATH/include"
 CXXFLAGS="$CXXFLAGS -I$LITHEPATH/include"
 LDFLAGS="$LDFLAGS -L$LITHEPATH/lib"
+
+# Add upthread -L and -I directories into LDFLAGS and C/CXXFLAGS respectively,
+# if they are not install on the system already
+AC_ARG_WITH([upthread],
+  [AS_HELP_STRING([--with-upthread],
+    [path to your upthread installation if not in a standard location])],
+  [UPTHREADPATH="$withval"],
+  [with_upthread=no])
+
+CFLAGS="$CFLAGS -I$UPTHREADPATH/include"
+CXXFLAGS="$CXXFLAGS -I$UPTHREADPATH/include"
+LDFLAGS="$LDFLAGS -L$UPTHREADPATH/lib"
           
 # Check whether LIBRARY exists and contains FUNCT
 # Execute ACT-IF-FOUND if it does.  ACT-IF-NOT otherwise.
@@ -436,6 +457,22 @@ if [[ $parlib_sched = lithe ]]; then
 	AC_CHECK_LIB(ithe, lithe_sched_enter, [], [
 	    echo "Error! You need to have lithe installed on your system in order to build libgomp-lithe!"
 	    echo "Try setting --with-lithe=<lithe_install_dir>"
+	    echo "See 'configure --help' for details."
+	    exit -1
+	])
+	LDFLAGS="$save_LDFLAGS"
+	LIBS="$save_LIBS"
+fi
+
+# Check for upthread 
+if [[ $parlib_sched = upthread ]]; then
+	save_LDFLAGS="$LDFLAGS"
+	save_LIBS="$LIBS"
+	LDFLAGS="$LDFLAGS -static -lpthread"
+	LIBS="$LIBS -lparlib -lpthread"
+	AC_CHECK_LIB(upthread, upthread_create, [], [
+	    echo "Error! You need to have upthread installed on your system in order to build libgomp-upthread!"
+	    echo "Try setting --with-upthread=<upthread_install_dir>"
 	    echo "See 'configure --help' for details."
 	    exit -1
 	])
