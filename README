@@ -1,4 +1,4 @@
-Libgomp-Lithe - README
+Libgomp-Parlib - README
 For questions or comments, please contact: Kevin Klues <klueska@cs.berkeley.edu>
 
 This includes a lithe "ported" implementation of libgomp ripped out of
@@ -16,9 +16,10 @@ cd libgomp
 mkdir build
 cd build
 ../configure --prefix=<install_dir> \
-             --enable-lithe \
+             --enable-parlib-sched=<lithe, upthread>\
              --with-parlib=<parlib_install_dir> \
              --with-lithe=<lithe_install_dir>
+             --with-upthread=<upthread_install_dir>
 make
 make install
 
