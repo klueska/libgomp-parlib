@@ -468,7 +468,7 @@ fi
 if [[ $parlib_sched = upthread ]]; then
 	save_LDFLAGS="$LDFLAGS"
 	save_LIBS="$LIBS"
-	LDFLAGS="$LDFLAGS -static -lpthread"
+	LDFLAGS="$LDFLAGS"
 	LIBS="$LIBS -lparlib -lpthread"
 	AC_CHECK_LIB(upthread, upthread_create, [], [
 	    echo "Error! You need to have upthread installed on your system in order to build libgomp-upthread!"
