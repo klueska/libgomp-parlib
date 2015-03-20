@@ -38,7 +38,7 @@ static libgomp_lithe_context_t *__ctx_alloc(size_t stacksize)
 {
 	libgomp_lithe_context_t *ctx = wfl_remove(&context_zombie_list);
 	if (!ctx) {
-		int offset = sizeof(libgomp_lithe_context_t);
+		int offset = ROUNDUP(sizeof(libgomp_lithe_context_t), ARCH_CL_SIZE);
 		offset += rand_r(&rseed(0)) % max_vcores() * ARCH_CL_SIZE;
 		stacksize = ROUNDUP(stacksize + offset, PGSIZE);
 		void *stackbot = mmap(
