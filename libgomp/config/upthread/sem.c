@@ -34,7 +34,7 @@
 
 void gomp_sem_init (gomp_sem_t *sem, int value)
 {
-  upthread_sem_init(sem, value);
+  upthread_sem_init(sem, 0, value);
 }
 
 void gomp_sem_wait (gomp_sem_t *sem)
