@@ -145,7 +145,7 @@ strong_alias (gomp_test_lock_30, gomp_test_lock_25)
 
 static inline int gomp_tid (void)
 {
-  return upthread_self()->id;
+  return upthread_tid();
 }
 
 void
