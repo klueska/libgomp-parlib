@@ -124,8 +124,7 @@ static void context_block(lithe_sched_t *__this, lithe_context_t *__context)
 
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context)
 {
-  libgomp_lithe_sched_t *sched = (libgomp_lithe_sched_t*)__this;
-  lithe_fork_join_hart_request_inc(&sched->sched, -1);
+  lithe_hart_request(-1);
   lithe_fork_join_context_cleanup((lithe_fork_join_context_t*)context);
   __ctx_free((libgomp_lithe_context_t*)context);
   libgomp_lithe_sched_decref((libgomp_lithe_sched_t*)__this);
