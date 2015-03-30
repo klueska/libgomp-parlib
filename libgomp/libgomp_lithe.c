@@ -9,8 +9,8 @@
 #include <lithe/defaults.h>
 
 static size_t __context_stack_size = 1<<20;
-struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
-struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
+static struct wfl sched_zombie_list = WFL_INITIALIZER(sched_zombie_list);
+static struct wfl context_zombie_list = WFL_INITIALIZER(context_zombie_list);
 
 static void context_block(lithe_sched_t *__this, lithe_context_t *context);
 static void context_exit(lithe_sched_t *__this, lithe_context_t *context);
