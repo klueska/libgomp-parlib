@@ -527,7 +527,7 @@ initialize_env (void)
   /* Not strictly environment related, but ordering constructors is tricky.  */
 #ifdef USE_UPTHREAD
   upthread_can_vcore_request(false);
-  upthread_can_vcore_steal(false);
+  upthread_can_vcore_steal(true);
   upthread_set_num_vcores(gomp_global_icv.nthreads_var);
   vcore_request(gomp_global_icv.nthreads_var - 1);
 #endif
